@@ -8,4 +8,5 @@ langdetect
 openai
 requests
 beautifulsoup4
+deep-translator
 pytest

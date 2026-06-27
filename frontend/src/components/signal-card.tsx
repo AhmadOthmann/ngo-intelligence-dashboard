@@ -20,8 +20,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useAppState } from "@/lib/app-state";
-import { itemToSignal, translateItem } from "@/lib/api";
-import { translateMessage } from "@/lib/ai-mock";
+import { itemToSignal, translateItem, translateText } from "@/lib/api";
 import type { Signal } from "@/lib/types";
 import { toast } from "sonner";
 
@@ -54,8 +53,12 @@ export function SignalCard({ signal }: { signal: Signal }) {
     try {
       const itemId = getBackendItemId(signal.id);
       if (itemId == null) {
-        setTranslatedText(translateMessage(signal.summary, targetLanguage));
-        setTranslatedLanguage(targetLanguage);
+        const translated = await translateText(
+          signal.longSummary || signal.summary,
+          targetLanguage,
+        );
+        setTranslatedText(cleanTranslationText(translated.translated_text));
+        setTranslatedLanguage(translated.target_language);
         return;
       }
 
@@ -314,7 +317,9 @@ function normalizeTargetLanguage(language: string | undefined): string {
 }
 
 function cleanTranslationText(text: string): string {
-  return text.replace(/^\[Demo translation fallback: ([^\]]+)\]\s*/, "[$1 preview] ");
+  return text
+    .replace(/^\[Demo translation fallback: ([^\]]+)\]\s*/, "[$1 preview] ")
+    .replace(/^\[Translation preview: ([^\]]+)\]\s*/, "[$1 preview] ");
 }
 
 function getDetailPoints(signal: Signal): string[] {

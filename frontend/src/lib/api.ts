@@ -71,6 +71,12 @@ export interface AnalyzeAllResult {
   errors: Array<{ item_id: number; error: string }>;
 }
 
+export interface TranslateTextResult {
+  target_language: string;
+  translated_text: string;
+  quality_note: string;
+}
+
 export interface ItemsResponse {
   items: BackendItem[];
   count: number;
@@ -159,7 +165,7 @@ export async function scrapeWeb(): Promise<ScrapeResult> {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      max_pages: 10,
+      max_pages: 20,
       follow_links: true,
       respect_robots: true,
     }),
@@ -195,6 +201,21 @@ export async function translateItem(id: number, targetLanguage: string): Promise
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ target_language: targetLanguage }),
+  });
+  if (!response.ok) {
+    throw new Error(`Translation failed (${response.status})`);
+  }
+  return response.json();
+}
+
+export async function translateText(
+  text: string,
+  targetLanguage: string,
+): Promise<TranslateTextResult> {
+  const response = await fetch(`${API_BASE_URL}/translate/text`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text, target_language: targetLanguage }),
   });
   if (!response.ok) {
     throw new Error(`Translation failed (${response.status})`);

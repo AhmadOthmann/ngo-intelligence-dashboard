@@ -85,7 +85,7 @@ class IngestResult(BaseModel):
 
 class ScrapeRequest(BaseModel):
     urls: Optional[list[str]] = None
-    max_pages: int = Field(default=10, ge=1, le=30)
+    max_pages: int = Field(default=20, ge=1, le=80)
     follow_links: bool = True
     respect_robots: bool = True
 
@@ -106,6 +106,16 @@ class TranslateRequest(BaseModel):
         if normalized not in VALID_TARGET_LANGUAGES:
             raise ValueError("target_language must be one of: English, French, German")
         return LANGUAGE_LABELS[normalized]
+
+
+class TranslateTextRequest(TranslateRequest):
+    text: str = Field(min_length=1, max_length=12000)
+
+
+class TranslateTextResponse(BaseModel):
+    target_language: str
+    translated_text: str
+    quality_note: str
 
 
 class ItemsResponse(BaseModel):

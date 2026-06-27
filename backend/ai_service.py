@@ -120,13 +120,14 @@ class AIService:
         fallback = {
             "target_language": target_language,
             "translated_text": (
-                f"[Demo translation fallback: {target_language}] "
+                f"[Translation preview: {target_language}] "
                 f"{_truncate(_strip_html(text), 1200)}"
             ),
-            "quality_note": "Fallback mode: no OpenAI API call was made.",
+            "quality_note": "Preview mode: no translation provider completed the request.",
         }
+        provider_fallback = _translate_with_google_fallback(text, target_language, fallback)
         if not self.openai_configured:
-            return fallback
+            return provider_fallback
 
         result = self._create_json(
             name="ngo_translation",
@@ -141,7 +142,7 @@ class AIService:
                 f"{_truncate(_strip_html(text), 6000)}"
             ),
         )
-        return _validate_translation(result, fallback, target_language)
+        return _validate_translation(result, provider_fallback, target_language)
 
     def generate_digest(
         self,
@@ -313,6 +314,41 @@ def _validate_translation(
         "translated_text": translated,
         "quality_note": str(result.get("quality_note") or "OpenAI translation completed."),
     }
+
+
+def _translate_with_google_fallback(
+    text: str,
+    target_language: str,
+    fallback: dict[str, Any],
+) -> dict[str, Any]:
+    clean = _truncate(_strip_html(text), 4500)
+    if not clean:
+        return fallback
+    try:
+        from deep_translator import GoogleTranslator
+
+        translated = GoogleTranslator(
+            source="auto",
+            target=_google_language_code(target_language),
+        ).translate(clean)
+        if translated and translated.strip() and translated.strip() != clean.strip():
+            return {
+                "target_language": target_language,
+                "translated_text": translated.strip(),
+                "quality_note": "Translated with Google Translate fallback.",
+            }
+    except Exception:
+        pass
+    return fallback
+
+
+def _google_language_code(target_language: str) -> str:
+    normalized = target_language.strip().lower()
+    if normalized in {"german", "de"}:
+        return "de"
+    if normalized in {"french", "fr"}:
+        return "fr"
+    return "en"
 
 
 def _validate_digest(

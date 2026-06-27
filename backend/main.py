@@ -32,6 +32,8 @@ from .models import (
     ScrapeRequest,
     ScrapeResult,
     TranslateRequest,
+    TranslateTextRequest,
+    TranslateTextResponse,
 )
 from .web_scraper_service import WebScraperService
 
@@ -294,6 +296,17 @@ def analyze_item(
 
 
 @app.post(
+    "/translate/text",
+    response_model=TranslateTextResponse,
+    summary="Translate text",
+    description="Translates arbitrary text into English, French, or German.",
+)
+def translate_text(request: TranslateTextRequest) -> TranslateTextResponse:
+    result = AIService().translate_text(request.text, request.target_language)
+    return TranslateTextResponse(**result)
+
+
+@app.post(
     "/translate/{item_id}",
     response_model=Item,
     summary="Translate one item",
@@ -327,7 +340,7 @@ def demo_reset() -> dict[str, Any]:
 @app.post("/demo/run")
 def demo_run() -> dict[str, Any]:
     ingest_result = IngestService().ingest()
-    scrape_result = WebScraperService().scrape(max_pages=8, follow_links=True)
+    scrape_result = WebScraperService().scrape(max_pages=15, follow_links=True)
     analyzed = AnalysisService().analyze_all(limit=50)
     digest = AnalysisService().digest()
     return {

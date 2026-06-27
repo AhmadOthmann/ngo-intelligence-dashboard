@@ -78,7 +78,17 @@ def test_mvp_endpoints_use_sqlite_and_fallback_analysis(monkeypatch) -> None:
             json={"target_language": "German"},
         ).json()
         assert translated["translated_language"] == "German"
-        assert "Demo translation fallback" in translated["translated_text"]
+        assert translated["translated_text"]
+
+        translated_text = client.post(
+            "/translate/text",
+            json={
+                "target_language": "German",
+                "text": "Funding deadline for education partners in Burundi.",
+            },
+        ).json()
+        assert translated_text["target_language"] == "German"
+        assert translated_text["translated_text"]
 
         assert client.get(f"/items/{item['id']}").status_code == 200
         assert client.get("/items/999999").status_code == 404
