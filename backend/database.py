@@ -108,11 +108,37 @@ def get_item(item_id: int, db_path: Path | str = DATABASE_PATH) -> Optional[Item
     return row_to_item(row) if row else None
 
 
-def list_items(db_path: Path | str = DATABASE_PATH) -> list[Item]:
+def list_items(
+    *,
+    q: Optional[str] = None,
+    limit: int = 50,
+    offset: int = 0,
+    db_path: Path | str = DATABASE_PATH,
+) -> list[Item]:
+    where_clause = ""
+    parameters: list[Any] = []
+    if q:
+        where_clause = """
+            WHERE title LIKE ?
+               OR source LIKE ?
+               OR raw_text LIKE ?
+               OR summary LIKE ?
+        """
+        keyword = f"%{q}%"
+        parameters.extend([keyword, keyword, keyword, keyword])
+    parameters.extend([limit, offset])
+
     connection = get_connection(db_path)
     try:
         rows = connection.execute(
-            "SELECT * FROM items ORDER BY created_at DESC"
+            f"""
+            SELECT *
+            FROM items
+            {where_clause}
+            ORDER BY created_at DESC
+            LIMIT ? OFFSET ?
+            """,
+            parameters,
         ).fetchall()
     finally:
         connection.close()

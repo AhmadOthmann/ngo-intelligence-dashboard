@@ -29,3 +29,20 @@ If you are already inside the `backend` directory, go back to the project root b
 cd ..
 uvicorn backend.main:app --reload
 ```
+
+## Frontend setup
+
+In a second terminal, from the project root:
+
+```powershell
+cd frontend
+npm install
+npm run dev
+```
+
+The frontend reads backend data from `http://127.0.0.1:8000` by default. To use a different backend URL:
+
+```powershell
+$env:VITE_API_BASE_URL="http://127.0.0.1:8000"
+npm run dev
+```
