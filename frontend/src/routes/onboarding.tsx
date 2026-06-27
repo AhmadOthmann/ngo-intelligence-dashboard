@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Check, Edit, Sparkles } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { Button } from "@/components/ui/button";
@@ -24,6 +24,62 @@ export const Route = createFileRoute("/onboarding")({
 });
 
 const STEPS = ["Basics", "Topics", "Funding", "Sources", "Confirm"];
+const TOPIC_SUGGESTION_RULES = [
+  { topic: "Education", terms: ["education", "school", "learning", "literacy", "teacher", "student", "classroom"] },
+  { topic: "Children and youth", terms: ["children", "child", "youth", "young people", "adolescent", "student"] },
+  { topic: "Girls and women", terms: ["girls", "girl", "women", "woman", "female", "empowerment", "mothers"] },
+  { topic: "Health", terms: ["health", "medical", "clinic", "nutrition", "sanitation", "wash", "disease", "vaccination"] },
+  { topic: "Gender-based violence", terms: ["gender-based violence", "gbv", "violence against women", "protection"] },
+  { topic: "Menstrual hygiene", terms: ["menstrual", "menstruation", "period poverty", "pads", "hygiene"] },
+  { topic: "Vocational training", terms: ["vocational", "skills training", "livelihood", "employment", "apprenticeship"] },
+  { topic: "Humanitarian aid", terms: ["humanitarian", "emergency", "relief", "crisis", "disaster"] },
+  { topic: "Refugees and migration", terms: ["refugee", "displaced", "migration", "migrant", "idp"] },
+  { topic: "Rural development", terms: ["rural", "village", "community development", "livelihoods"] },
+  { topic: "Animal welfare", terms: ["animal welfare", "animal", "veterinary", "donkey", "dog", "shelter", "livestock"] },
+  { topic: "Wildlife protection", terms: ["wildlife", "conservation", "poaching", "biodiversity"] },
+  { topic: "Rabies", terms: ["rabies", "dog bite", "dog vaccination"] },
+  { topic: "Animal trade", terms: ["animal trade", "wildlife trade", "trafficking", "donkey skin", "puppy trade"] },
+  { topic: "Agriculture and consumer protection", terms: ["agriculture", "farming", "farmers", "food security", "consumer protection"] },
+  { topic: "Social media animal abuse", terms: ["social media animal abuse", "online animal abuse", "animal abuse content"] },
+  { topic: "Funding opportunities", terms: ["funding", "grant", "donor", "proposal", "fundraising", "bmz", "foundation"] },
+  { topic: "Human rights", terms: ["human rights", "rights", "advocacy", "legal support"] },
+  { topic: "Climate and environment", terms: ["climate", "environment", "sustainability", "resilience"] },
+  { topic: "Local security updates", terms: ["security", "conflict", "safety", "unrest"] },
+  { topic: "Development cooperation", terms: ["development cooperation", "partnership", "bmz", "giz", "ngo cooperation"] },
+] as const;
+const TOPIC_KEYWORD_HINTS: Record<string, string[]> = {
+  Education: ["education", "school attendance"],
+  "Children and youth": ["children", "youth development"],
+  "Girls and women": ["girls' education", "women empowerment"],
+  Health: ["community health"],
+  "Gender-based violence": ["GBV prevention"],
+  "Menstrual hygiene": ["menstrual hygiene"],
+  "Vocational training": ["vocational training", "skills training"],
+  "Humanitarian aid": ["humanitarian aid"],
+  "Refugees and migration": ["refugees", "migration"],
+  "Rural development": ["rural development"],
+  "Animal welfare": ["animal welfare"],
+  "Wildlife protection": ["wildlife protection"],
+  Rabies: ["rabies"],
+  "Animal trade": ["wildlife trade", "animal trade"],
+  "Agriculture and consumer protection": ["food security"],
+  "Social media animal abuse": ["online animal abuse"],
+  "Funding opportunities": ["small grants"],
+  "Human rights": ["human rights"],
+  "Climate and environment": ["climate resilience"],
+  "Local security updates": ["local security"],
+  "Development cooperation": ["development cooperation"],
+};
+const DEFAULT_DESCRIPTION =
+  "Small NGO supporting education, girls' empowerment, and health in Burundi.";
+const INITIAL_SUGGESTIONS = suggestOnboardingDefaults({
+  name: "Burundi Kids",
+  country: "Burundi",
+  city: "Bujumbura",
+  language: "German",
+  website: "",
+  description: DEFAULT_DESCRIPTION,
+});
 
 function Onboarding() {
   const navigate = useNavigate();
@@ -36,41 +92,87 @@ function Onboarding() {
   const [city, setCity] = useState("Bujumbura");
   const [language, setLanguage] = useState("German");
   const [website, setWebsite] = useState("");
-  const [description, setDescription] = useState(
-    "Small NGO supporting education, girls' empowerment, and health in Burundi.",
-  );
+  const [description, setDescription] = useState(DEFAULT_DESCRIPTION);
 
   // Step 2
-  const [topics, setTopics] = useState<string[]>([
-    "Education",
-    "Children and youth",
-    "Girls and women",
-    "Health",
-  ]);
-  const [keywords, setKeywords] = useState("Burundi, Bujumbura, Gitega, girls' education, BMZ funding");
+  const [topics, setTopics] = useState<string[]>(INITIAL_SUGGESTIONS.topics);
+  const [keywords, setKeywords] = useState(INITIAL_SUGGESTIONS.keywords);
   const [profilePreview, setProfilePreview] = useState<ReturnType<typeof generateNgoProfile> | null>(null);
+  const [topicsTouched, setTopicsTouched] = useState(false);
+  const [keywordsTouched, setKeywordsTouched] = useState(false);
 
   // Step 3
   const [fundingEnabled, setFundingEnabled] = useState(true);
-  const [fundingRegions, setFundingRegions] = useState<string[]>(["Africa", "East Africa", "Burundi"]);
+  const [fundingRegions, setFundingRegions] = useState<string[]>(INITIAL_SUGGESTIONS.fundingRegions);
   const [minAmt, setMinAmt] = useState("€5,000");
   const [maxAmt, setMaxAmt] = useState("€100,000");
-  const [applicantTypes, setApplicantTypes] = useState<string[]>(["German NGO", "local NGO"]);
-  const [fundingTopics, setFundingTopics] = useState<string[]>(["Education", "Health"]);
-  const [fundingChips, setFundingChips] = useState<string[]>([
-    "Small project funding",
-    "BMZ",
-    "German applicant eligible",
-  ]);
+  const [applicantTypes, setApplicantTypes] = useState<string[]>(INITIAL_SUGGESTIONS.applicantTypes);
+  const [fundingTopics, setFundingTopics] = useState<string[]>(INITIAL_SUGGESTIONS.fundingTopics);
+  const [fundingChips, setFundingChips] = useState<string[]>(INITIAL_SUGGESTIONS.fundingChips);
   const [urgency, setUrgency] = useState("Within 3 months");
+  const [fundingRegionsTouched, setFundingRegionsTouched] = useState(false);
+  const [applicantTypesTouched, setApplicantTypesTouched] = useState(false);
+  const [fundingTopicsTouched, setFundingTopicsTouched] = useState(false);
+  const [fundingChipsTouched, setFundingChipsTouched] = useState(false);
 
   // Step 4
-  const [sources, setSources] = useState<string[]>([
-    "News articles",
-    "Funding calls",
-    "Peer-saved resources",
-  ]);
+  const [sources, setSources] = useState<string[]>(INITIAL_SUGGESTIONS.sources);
   const [sourcesNote, setSourcesNote] = useState("");
+  const [sourcesTouched, setSourcesTouched] = useState(false);
+
+  const suggestedDefaults = useMemo(
+    () => suggestOnboardingDefaults({ name, country, city, language, website, description }),
+    [name, country, city, language, website, description],
+  );
+
+  useEffect(() => {
+    if (!topicsTouched) setTopics(suggestedDefaults.topics);
+    if (!keywordsTouched) setKeywords(suggestedDefaults.keywords);
+    if (!fundingRegionsTouched) setFundingRegions(suggestedDefaults.fundingRegions);
+    if (!applicantTypesTouched) setApplicantTypes(suggestedDefaults.applicantTypes);
+    if (!fundingChipsTouched) setFundingChips(suggestedDefaults.fundingChips);
+    if (!sourcesTouched) setSources(suggestedDefaults.sources);
+  }, [
+    suggestedDefaults,
+    topicsTouched,
+    keywordsTouched,
+    fundingRegionsTouched,
+    applicantTypesTouched,
+    fundingChipsTouched,
+    sourcesTouched,
+  ]);
+
+  useEffect(() => {
+    if (!fundingTopicsTouched) {
+      setFundingTopics(topics.filter((topic) => topic !== "Local security updates").slice(0, 6));
+    }
+  }, [fundingTopicsTouched, topics]);
+
+  useEffect(() => {
+    setProfilePreview(null);
+  }, [name, country, city, language, website, description, topics, keywords]);
+
+  function applySuggestedDefaults() {
+    setTopics(suggestedDefaults.topics);
+    setKeywords(suggestedDefaults.keywords);
+    setFundingRegions(suggestedDefaults.fundingRegions);
+    setApplicantTypes(suggestedDefaults.applicantTypes);
+    setFundingTopics(suggestedDefaults.fundingTopics);
+    setFundingChips(suggestedDefaults.fundingChips);
+    setSources(suggestedDefaults.sources);
+    setTopicsTouched(false);
+    setKeywordsTouched(false);
+    setFundingRegionsTouched(false);
+    setApplicantTypesTouched(false);
+    setFundingTopicsTouched(false);
+    setFundingChipsTouched(false);
+    setSourcesTouched(false);
+  }
+
+  const fundingRegionOptions = useMemo(
+    () => unique(["local", "national", "international", "Africa", "East Africa", "Burundi", country, city, ...fundingRegions]),
+    [city, country, fundingRegions],
+  );
 
   const finalProfile: NgoProfile = useMemo(() => {
     const ai = profilePreview ?? generateNgoProfile({ name, country, language, description, topics, keywords });
@@ -144,18 +246,33 @@ function Onboarding() {
               <SectionHead title="What topics matter to your work?" subtitle="Pick everything that fits. You can change this later." />
               <div className="flex flex-wrap gap-2">
                 {TOPIC_OPTIONS.map((t) => (
-                  <Chip key={t} active={topics.includes(t)} onClick={() => setTopics((p) => p.includes(t) ? p.filter((x) => x !== t) : [...p, t])}>{t}</Chip>
+                  <Chip
+                    key={t}
+                    active={topics.includes(t)}
+                    onClick={() => {
+                      setTopicsTouched(true);
+                      setTopics((p) => p.includes(t) ? p.filter((x) => x !== t) : [...p, t]);
+                    }}
+                  >
+                    {t}
+                  </Chip>
                 ))}
               </div>
               <Field label="Add your own keywords or topics" hint="Comma-separated. Helps AI catch local terms.">
                 <Textarea
                   value={keywords}
-                  onChange={(e) => setKeywords(e.target.value)}
+                  onChange={(e) => {
+                    setKeywordsTouched(true);
+                    setKeywords(e.target.value);
+                  }}
                   rows={3}
                   placeholder="Burundi, Bujumbura, Gitega, Gateri, Great Lakes Region, girls' education, BMZ funding, small grants, rabies, wildlife trade…"
                 />
               </Field>
-              <div>
+              <div className="flex flex-wrap gap-2">
+                <Button type="button" variant="outline" onClick={applySuggestedDefaults}>
+                  <Sparkles className="h-4 w-4" /> Use description suggestions
+                </Button>
                 <Button
                   type="button"
                   variant="outline"
@@ -192,8 +309,17 @@ function Onboarding() {
                 <>
                   <Field label="Funding regions">
                     <div className="flex flex-wrap gap-2">
-                      {["local", "national", "international", "Africa", "East Africa", "Burundi"].map((r) => (
-                        <Chip key={r} active={fundingRegions.includes(r)} onClick={() => setFundingRegions((p) => p.includes(r) ? p.filter((x) => x !== r) : [...p, r])}>{r}</Chip>
+                      {fundingRegionOptions.map((r) => (
+                        <Chip
+                          key={r}
+                          active={fundingRegions.includes(r)}
+                          onClick={() => {
+                            setFundingRegionsTouched(true);
+                            setFundingRegions((p) => p.includes(r) ? p.filter((x) => x !== r) : [...p, r]);
+                          }}
+                        >
+                          {r}
+                        </Chip>
                       ))}
                     </div>
                   </Field>
@@ -204,21 +330,48 @@ function Onboarding() {
                   <Field label="Applicant type">
                     <div className="flex flex-wrap gap-2">
                       {["German NGO", "local NGO", "international NGO", "partner application"].map((a) => (
-                        <Chip key={a} active={applicantTypes.includes(a)} onClick={() => setApplicantTypes((p) => p.includes(a) ? p.filter((x) => x !== a) : [...p, a])}>{a}</Chip>
+                        <Chip
+                          key={a}
+                          active={applicantTypes.includes(a)}
+                          onClick={() => {
+                            setApplicantTypesTouched(true);
+                            setApplicantTypes((p) => p.includes(a) ? p.filter((x) => x !== a) : [...p, a]);
+                          }}
+                        >
+                          {a}
+                        </Chip>
                       ))}
                     </div>
                   </Field>
                   <Field label="Topics for funding">
                     <div className="flex flex-wrap gap-2">
                       {topics.map((t) => (
-                        <Chip key={t} active={fundingTopics.includes(t)} onClick={() => setFundingTopics((p) => p.includes(t) ? p.filter((x) => x !== t) : [...p, t])}>{t}</Chip>
+                        <Chip
+                          key={t}
+                          active={fundingTopics.includes(t)}
+                          onClick={() => {
+                            setFundingTopicsTouched(true);
+                            setFundingTopics((p) => p.includes(t) ? p.filter((x) => x !== t) : [...p, t]);
+                          }}
+                        >
+                          {t}
+                        </Chip>
                       ))}
                     </div>
                   </Field>
                   <Field label="Funding tags">
                     <div className="flex flex-wrap gap-2">
                       {FUNDING_CHIPS.map((c) => (
-                        <Chip key={c} active={fundingChips.includes(c)} onClick={() => setFundingChips((p) => p.includes(c) ? p.filter((x) => x !== c) : [...p, c])}>{c}</Chip>
+                        <Chip
+                          key={c}
+                          active={fundingChips.includes(c)}
+                          onClick={() => {
+                            setFundingChipsTouched(true);
+                            setFundingChips((p) => p.includes(c) ? p.filter((x) => x !== c) : [...p, c]);
+                          }}
+                        >
+                          {c}
+                        </Chip>
                       ))}
                     </div>
                   </Field>
@@ -251,7 +404,10 @@ function Onboarding() {
                   <label key={s} className="flex items-center gap-2 rounded-xl border border-border p-3 text-sm">
                     <Checkbox
                       checked={sources.includes(s)}
-                      onCheckedChange={(c) => setSources((p) => c ? [...p, s] : p.filter((x) => x !== s))}
+                      onCheckedChange={(c) => {
+                        setSourcesTouched(true);
+                        setSources((p) => c ? [...p, s] : p.filter((x) => x !== s));
+                      }}
                     />
                     {s}
                   </label>
@@ -378,4 +534,137 @@ function ProfileRow({ label, value }: { label: string; value: string }) {
       <div className="font-medium text-foreground">{value}</div>
     </div>
   );
+}
+
+interface SuggestionInput {
+  name: string;
+  country: string;
+  city: string;
+  language: string;
+  website: string;
+  description: string;
+}
+
+interface SuggestedDefaults {
+  topics: string[];
+  keywords: string;
+  fundingRegions: string[];
+  applicantTypes: string[];
+  fundingTopics: string[];
+  fundingChips: string[];
+  sources: string[];
+}
+
+function suggestOnboardingDefaults(input: SuggestionInput): SuggestedDefaults {
+  const text = normalizeText(
+    [input.name, input.country, input.city, input.language, input.website, input.description].join(" "),
+  );
+  const matchedTopics = TOPIC_SUGGESTION_RULES
+    .filter((rule) => rule.terms.some((term) => text.includes(term)))
+    .map((rule) => rule.topic)
+    .filter((topic) => TOPIC_OPTIONS.includes(topic));
+  const topics = unique(matchedTopics).slice(0, 7);
+  const selectedTopics = topics.length ? topics : ["Development cooperation", "Funding opportunities"];
+  const country = cleanLabel(input.country);
+  const city = cleanLabel(input.city);
+  const germanContext = hasAny(text, ["german", "germany", "deutsch", "bmz", "giz", ".de"]);
+  const eastAfricaContext = hasAny(text, [
+    "east africa",
+    "burundi",
+    "rwanda",
+    "uganda",
+    "kenya",
+    "tanzania",
+    "great lakes",
+  ]);
+  const animalContext = selectedTopics.some((topic) =>
+    ["Animal welfare", "Wildlife protection", "Rabies", "Animal trade", "Social media animal abuse"].includes(topic),
+  );
+  const womenContext = selectedTopics.some((topic) =>
+    ["Girls and women", "Gender-based violence", "Menstrual hygiene"].includes(topic),
+  );
+  const healthContext = selectedTopics.some((topic) => ["Health", "Rabies"].includes(topic));
+  const educationContext = selectedTopics.some((topic) =>
+    ["Education", "Children and youth", "Vocational training"].includes(topic),
+  );
+  const humanitarianContext = selectedTopics.some((topic) =>
+    ["Humanitarian aid", "Refugees and migration"].includes(topic),
+  );
+  const developmentContext = selectedTopics.some((topic) =>
+    ["Rural development", "Climate and environment", "Development cooperation"].includes(topic),
+  );
+
+  const keywordHints = selectedTopics.flatMap((topic) => TOPIC_KEYWORD_HINTS[topic] ?? []);
+  const keywords = unique([
+    country,
+    city,
+    text.includes("burundi") ? "Gitega" : "",
+    eastAfricaContext ? "Great Lakes Region" : "",
+    ...keywordHints,
+    germanContext ? "BMZ funding" : "",
+    selectedTopics.includes("Funding opportunities") ? "small grants" : "",
+  ])
+    .slice(0, 12)
+    .join(", ");
+
+  const fundingRegions = unique([
+    eastAfricaContext ? "Africa" : "",
+    eastAfricaContext ? "East Africa" : "",
+    country,
+  ]);
+  const applicantTypes = unique([
+    germanContext ? "German NGO" : "",
+    country && !germanContext ? "local NGO" : "local NGO",
+    "partner application",
+  ]);
+  const fundingTopics = selectedTopics
+    .filter((topic) => topic !== "Local security updates")
+    .slice(0, 6);
+  const fundingChips = unique([
+    "Small project funding",
+    germanContext ? "BMZ" : "",
+    "Foundations",
+    educationContext ? "Education funding" : "",
+    healthContext ? "Health funding" : "",
+    animalContext ? "Animal welfare funding" : "",
+    humanitarianContext ? "Emergency aid" : "",
+    womenContext ? "Women and girls" : "",
+    developmentContext ? "Development cooperation" : "",
+    country || eastAfricaContext ? "Local partner required" : "",
+    germanContext ? "German applicant eligible" : "",
+  ]).filter((chip) => FUNDING_CHIPS.includes(chip));
+  const sources = unique([
+    "News articles",
+    "Funding calls",
+    hasAny(text, ["report", "research", "data", "evaluation"]) ? "NGO reports" : "",
+    hasAny(text, ["partner", "network", "peer", "coalition"]) ? "Peer-saved resources" : "",
+    hasAny(text, ["social media", "public posts", "online"]) ? "Public posts from similar NGOs" : "",
+    hasAny(text, ["newsletter", "rss", "google alert"]) ? "RSS feeds" : "",
+  ]);
+
+  return {
+    topics: selectedTopics,
+    keywords,
+    fundingRegions,
+    applicantTypes,
+    fundingTopics,
+    fundingChips,
+    sources,
+  };
+}
+
+function normalizeText(value: string): string {
+  return value.toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+function cleanLabel(value: string): string {
+  return value.trim().replace(/\s+/g, " ");
+}
+
+function hasAny(text: string, terms: string[]): boolean {
+  return terms.some((term) => text.includes(term));
+}
+
+function unique(values: string[]): string[] {
+  return Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)));
 }

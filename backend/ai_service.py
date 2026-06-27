@@ -327,14 +327,22 @@ def _translate_with_google_fallback(
     try:
         from deep_translator import GoogleTranslator
 
-        translated = GoogleTranslator(
+        translator = GoogleTranslator(
             source="auto",
             target=_google_language_code(target_language),
-        ).translate(clean)
-        if translated and translated.strip() and translated.strip() != clean.strip():
+        )
+        translated_chunks = []
+        for chunk in _split_translation_chunks(clean):
+            translated = translator.translate(chunk)
+            if not translated or not translated.strip():
+                return fallback
+            translated_chunks.append(translated.strip())
+
+        translated_text = " ".join(translated_chunks).strip()
+        if translated_text and translated_text != clean.strip():
             return {
                 "target_language": target_language,
-                "translated_text": translated.strip(),
+                "translated_text": translated_text,
                 "quality_note": "Translated with Google Translate fallback.",
             }
     except Exception:
@@ -349,6 +357,47 @@ def _google_language_code(target_language: str) -> str:
     if normalized in {"french", "fr"}:
         return "fr"
     return "en"
+
+
+def _split_translation_chunks(text: str, max_chars: int = 1200) -> list[str]:
+    chunks: list[str] = []
+    current = ""
+    for sentence in re.split(r"(?<=[.!?])\s+", text):
+        sentence = sentence.strip()
+        if not sentence:
+            continue
+        if len(sentence) > max_chars:
+            if current:
+                chunks.append(current)
+                current = ""
+            chunks.extend(_split_long_text(sentence, max_chars))
+            continue
+        candidate = f"{current} {sentence}".strip()
+        if len(candidate) <= max_chars:
+            current = candidate
+        else:
+            if current:
+                chunks.append(current)
+            current = sentence
+    if current:
+        chunks.append(current)
+    return chunks or [text]
+
+
+def _split_long_text(text: str, max_chars: int) -> list[str]:
+    chunks: list[str] = []
+    current = ""
+    for word in text.split():
+        candidate = f"{current} {word}".strip()
+        if len(candidate) <= max_chars:
+            current = candidate
+        else:
+            if current:
+                chunks.append(current)
+            current = word
+    if current:
+        chunks.append(current)
+    return chunks
 
 
 def _validate_digest(

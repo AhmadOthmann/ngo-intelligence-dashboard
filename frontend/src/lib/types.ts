@@ -90,6 +90,7 @@ export interface ChatMessage {
   originalLang: string;
   translatedText: string;
   targetLang: string;
+  translationError?: string;
   timestamp: string;
   sentAt?: string;
 }

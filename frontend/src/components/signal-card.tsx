@@ -41,7 +41,9 @@ export function SignalCard({ signal }: { signal: Signal }) {
   const [targetLanguage, setTargetLanguage] = useState(
     normalizeTargetLanguage(profile?.language),
   );
-  const [translatedText, setTranslatedText] = useState(signal.translatedText ?? "");
+  const [translatedText, setTranslatedText] = useState(
+    cleanTranslationText(signal.translatedText ?? ""),
+  );
   const [translatedLanguage, setTranslatedLanguage] = useState(
     signal.translatedLanguage ?? "",
   );
@@ -57,19 +59,29 @@ export function SignalCard({ signal }: { signal: Signal }) {
           signal.longSummary || signal.summary,
           targetLanguage,
         );
-        setTranslatedText(cleanTranslationText(translated.translated_text));
-        setTranslatedLanguage(translated.target_language);
+        applyTranslation(translated.translated_text, translated.target_language);
         return;
       }
 
       const translated = itemToSignal(await translateItem(itemId, targetLanguage));
-      setTranslatedText(cleanTranslationText(translated.translatedText ?? ""));
-      setTranslatedLanguage(translated.translatedLanguage ?? targetLanguage);
+      applyTranslation(translated.translatedText ?? "", translated.translatedLanguage ?? targetLanguage);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Translation failed");
     } finally {
       setIsTranslating(false);
     }
+  }
+
+  function applyTranslation(text: string, language: string) {
+    const cleaned = cleanTranslationText(text);
+    if (!cleaned) {
+      setTranslatedText("");
+      setTranslatedLanguage("");
+      toast.error("Translation provider did not return a real translation. Restart the backend and try again.");
+      return;
+    }
+    setTranslatedText(cleaned);
+    setTranslatedLanguage(language);
   }
 
   return (
@@ -317,9 +329,17 @@ function normalizeTargetLanguage(language: string | undefined): string {
 }
 
 function cleanTranslationText(text: string): string {
-  return text
-    .replace(/^\[Demo translation fallback: ([^\]]+)\]\s*/, "[$1 preview] ")
-    .replace(/^\[Translation preview: ([^\]]+)\]\s*/, "[$1 preview] ");
+  const trimmed = text.trim();
+  if (!trimmed || isTranslationPreview(trimmed)) return "";
+  return trimmed;
+}
+
+function isTranslationPreview(text: string): boolean {
+  return (
+    /^\[Demo translation fallback: [^\]]+\]\s*/.test(text) ||
+    /^\[Translation preview: [^\]]+\]\s*/.test(text) ||
+    /^\[(German|French|English) preview\]\s*/.test(text)
+  );
 }
 
 function getDetailPoints(signal: Signal): string[] {

@@ -307,6 +307,16 @@ def translate_text(request: TranslateTextRequest) -> TranslateTextResponse:
 
 
 @app.post(
+    "/translate-text",
+    response_model=TranslateTextResponse,
+    summary="Translate text",
+    description="Translates arbitrary text into English, French, or German.",
+)
+def translate_text_alias(request: TranslateTextRequest) -> TranslateTextResponse:
+    return translate_text(request)
+
+
+@app.post(
     "/translate/{item_id}",
     response_model=Item,
     summary="Translate one item",

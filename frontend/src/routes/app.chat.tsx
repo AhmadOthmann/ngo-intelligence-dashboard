@@ -16,6 +16,7 @@ function ChatPage() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const [showOriginal, setShowOriginal] = useState<Record<string, boolean>>({});
+  const [isSending, setIsSending] = useState(false);
 
   const active = activeId ? conversations.find((c) => c.id === activeId) ?? null : null;
 
@@ -99,17 +100,24 @@ function ChatPage() {
           {active.messages.map((message) => {
             const mine = message.sender === "me";
             const toggled = !!showOriginal[message.id];
-            const visibleText = mine
+            const translationFailed = !!message.translationError;
+            const visibleText = translationFailed
+              ? message.originalText
+              : mine
               ? toggled
                 ? message.translatedText
                 : message.originalText
               : toggled
                 ? message.originalText
                 : message.translatedText;
-            const translationLabel = mine
+            const translationLabel = translationFailed
+              ? `Sent in ${message.originalLang} / translation unavailable`
+              : mine
               ? `Sent in ${message.originalLang} / translated to ${message.targetLang}`
               : `Auto-translated ${message.originalLang} -> ${message.targetLang}`;
-            const toggleLabel = mine
+            const toggleLabel = translationFailed
+              ? ""
+              : mine
               ? toggled
                 ? "Show my message"
                 : "Show recipient translation"
@@ -135,17 +143,19 @@ function ChatPage() {
                     <span className="inline-flex items-center gap-1">
                       <Languages className="h-3 w-3" /> {translationLabel}
                     </span>
-                    <button
-                      className="underline-offset-2 hover:underline"
-                      onClick={() =>
-                        setShowOriginal((current) => ({
-                          ...current,
-                          [message.id]: !current[message.id],
-                        }))
-                      }
-                    >
-                      {toggleLabel}
-                    </button>
+                    {!translationFailed && (
+                      <button
+                        className="underline-offset-2 hover:underline"
+                        onClick={() =>
+                          setShowOriginal((current) => ({
+                            ...current,
+                            [message.id]: !current[message.id],
+                          }))
+                        }
+                      >
+                        {toggleLabel}
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -164,22 +174,27 @@ function ChatPage() {
           <div className="mt-3 flex flex-wrap gap-2">
             <Button
               size="sm"
-              onClick={() => {
+              disabled={isSending}
+              onClick={async () => {
                 if (!draft.trim()) return;
-                sendMessage(active.id, draft, profile?.language ?? "auto");
-                setDraft("");
+                const text = draft;
+                setIsSending(true);
+                try {
+                  await sendMessage(active.id, text, profile?.language ?? "auto");
+                  setDraft("");
+                } catch (error) {
+                  toast.error(error instanceof Error ? error.message : "Message translation failed");
+                } finally {
+                  setIsSending(false);
+                }
               }}
             >
-              <Send className="h-4 w-4" /> Send
+              <Send className="h-4 w-4" /> {isSending ? "Sending..." : "Send"}
             </Button>
             <Button
               size="sm"
               variant="outline"
-              onClick={() =>
-                setDraft(
-                  "Hallo, vielen Dank fuer eure Notizen. Habt ihr Erfahrungen mit deutschen Antragstellern?",
-                )
-              }
+              onClick={() => setDraft(draftReply(profile?.language))}
             >
               <Sparkles className="h-4 w-4" /> AI draft reply
             </Button>
@@ -198,4 +213,15 @@ function ChatPage() {
       </section>
     </div>
   );
+}
+
+function draftReply(language: string | undefined): string {
+  const normalized = language?.trim().toLowerCase() ?? "";
+  if (normalized.startsWith("german") || normalized === "de") {
+    return "Hallo, vielen Dank fuer eure Notizen. Habt ihr Erfahrungen mit passenden Antragstellern oder lokalen Partnern?";
+  }
+  if (normalized.startsWith("french") || normalized === "fr") {
+    return "Bonjour, merci pour vos notes. Avez-vous de l'experience avec des demandeurs eligibles ou des partenaires locaux ?";
+  }
+  return "Hello, thank you for your notes. Do you have experience with eligible applicants or local partners?";
 }

@@ -212,7 +212,7 @@ export async function translateText(
   text: string,
   targetLanguage: string,
 ): Promise<TranslateTextResult> {
-  const response = await fetch(`${API_BASE_URL}/translate/text`, {
+  const response = await fetch(`${API_BASE_URL}/translate-text`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ text, target_language: targetLanguage }),
@@ -268,8 +268,8 @@ export function itemToSignal(item: BackendItem): Signal {
             canApply: "check",
           }
         : undefined,
-    translatedText: item.translated_text ?? undefined,
-    translatedLanguage: item.translated_language ?? undefined,
+    translatedText: isTranslationPreview(item.translated_text) ? undefined : item.translated_text ?? undefined,
+    translatedLanguage: isTranslationPreview(item.translated_text) ? undefined : item.translated_language ?? undefined,
     url: item.url,
   };
 }
@@ -287,6 +287,15 @@ function cleanText(text: string): string {
 function truncate(text: string, maxLength: number): string {
   if (text.length <= maxLength) return text;
   return `${text.slice(0, maxLength - 3).trim()}...`;
+}
+
+function isTranslationPreview(text: string | null): boolean {
+  const value = text?.trim() ?? "";
+  return (
+    /^\[Demo translation fallback: [^\]]+\]\s*/.test(value) ||
+    /^\[Translation preview: [^\]]+\]\s*/.test(value) ||
+    /^\[(German|French|English) preview\]\s*/.test(value)
+  );
 }
 
 function formatDate(value: string): string {

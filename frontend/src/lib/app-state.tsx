@@ -7,8 +7,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { getItems, ingestRss, itemToSignal, type IngestResult } from "./api";
-import { translateMessage } from "./ai-mock";
+import { getItems, ingestRss, itemToSignal, translateText, type IngestResult } from "./api";
 import { BURUNDI_KIDS, DEMO_CONVERSATIONS, DEMO_SIGNALS } from "./demo-data";
 import type {
   ChatMessage,
@@ -41,7 +40,7 @@ interface AppState {
   addNote: (id: string, note: string) => void;
   archive: (id: string) => void;
   conversations: Conversation[];
-  sendMessage: (convId: string, text: string, lang: string) => void;
+  sendMessage: (convId: string, text: string, lang: string) => Promise<void>;
   saveInsight: (text: string) => void;
 }
 
@@ -52,7 +51,9 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<NgoProfile | null>(null);
   const [ignoredIds, setIgnoredIds] = useState<Set<string>>(new Set());
   const [saved, setSaved] = useState<SavedItem[]>([]);
-  const [conversations, setConversations] = useState<Conversation[]>(DEMO_CONVERSATIONS);
+  const [conversations, setConversations] = useState<Conversation[]>(
+    () => buildLocalizedDemoConversations(BURUNDI_KIDS.language),
+  );
   const [backendSignals, setBackendSignals] = useState<Signal[]>([]);
   const [hasLoadedBackendSignals, setHasLoadedBackendSignals] = useState(false);
   const [backendQuery, setBackendQuery] = useState("");
@@ -119,6 +120,15 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     void refreshSignals();
   }, [refreshSignals]);
 
+  useEffect(() => {
+    if (!profile) return;
+    setConversations((current) =>
+      hasUserChatMessages(current)
+        ? current
+        : buildLocalizedDemoConversations(profile.language),
+    );
+  }, [profile?.language]);
+
   const ignoreSignal = useCallback((id: string) => {
     setIgnoredIds((prev) => new Set(prev).add(id));
   }, []);
@@ -163,26 +173,50 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     );
   }, []);
 
-  const sendMessage = useCallback((convId: string, text: string, lang: string) => {
+  const sendMessage = useCallback(async (convId: string, text: string, lang: string) => {
+    const conversation = conversations.find((item) => item.id === convId);
+    if (!conversation) return;
+
+    const targetLang = inferPeerLanguage(conversation, lang);
+    const originalLang = languageCode(lang);
+    let translatedText = text;
+    let translationError: string | undefined;
+
+    if (targetLang !== originalLang) {
+      try {
+        translatedText = cleanTranslationText(
+          (await translateText(text, languageName(targetLang))).translated_text,
+        );
+        if (!translatedText) {
+          translatedText = text;
+          translationError = "Translation unavailable";
+        }
+      } catch (error) {
+        translatedText = text;
+        translationError =
+          error instanceof Error ? error.message : "Translation unavailable";
+      }
+    }
+
     const now = new Date();
     setConversations((prev) =>
       prev.map((conversation) => {
         if (conversation.id !== convId) return conversation;
-        const targetLang = inferPeerLanguage(conversation, lang);
         const msg: ChatMessage = {
           id: `m-${Date.now()}`,
           sender: "me",
           originalText: text,
-          originalLang: languageCode(lang),
-          translatedText: translateMessage(text, targetLang),
+          originalLang,
+          translatedText,
           targetLang,
+          translationError,
           timestamp: now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
           sentAt: now.toISOString(),
         };
         return { ...conversation, messages: [...conversation.messages, msg] };
       }),
     );
-  }, []);
+  }, [conversations]);
 
   const saveInsight = useCallback((text: string) => {
     const s: Signal = {
@@ -254,8 +288,9 @@ function inferPeerLanguage(conversation: Conversation, ownLanguage: string): str
     const ownCode = languageCode(ownLanguage);
     return codes[0] === ownCode ? codes[1] : codes[0];
   }
+  if (codes && codes.length === 1) return codes[0];
 
-  return "peer language";
+  return languageCode(ownLanguage);
 }
 
 function languageCode(language: string): string {
@@ -265,3 +300,110 @@ function languageCode(language: string): string {
   if (normalized.startsWith("english") || normalized === "en") return "EN";
   return language || "auto";
 }
+
+function languageName(language: string): string {
+  const code = languageCode(language);
+  if (code === "DE") return "German";
+  if (code === "FR") return "French";
+  return "English";
+}
+
+function cleanTranslationText(text: string): string {
+  const value = text.trim();
+  if (
+    /^\[Demo translation fallback: [^\]]+\]\s*/.test(value) ||
+    /^\[Translation preview: [^\]]+\]\s*/.test(value) ||
+    /^\[(German|French|English|DE|FR|EN) preview\]\s*/.test(value)
+  ) {
+    return "";
+  }
+  return value;
+}
+
+function buildLocalizedDemoConversations(preferredLanguage: string): Conversation[] {
+  const ownCode = supportedDemoLanguageCode(preferredLanguage);
+  return DEMO_CONVERSATIONS.map((conversation, index) => {
+    const peerCode = demoPeerLanguage(ownCode, index);
+    const localized: Conversation = {
+      ...conversation,
+      translationStatus:
+        peerCode === ownCode
+          ? `Same language (${ownCode})`
+          : `Auto-translating ${peerCode} <-> ${ownCode}`,
+      messages: [],
+    };
+
+    if (conversation.id !== "c1") return localized;
+
+    const ownText = DEMO_CHAT_TEXT[ownCode];
+    const peerText = DEMO_CHAT_TEXT[peerCode];
+    return {
+      ...localized,
+      messages: [
+        {
+          id: "m1",
+          sender: "me",
+          originalText: ownText.me,
+          originalLang: ownCode,
+          translatedText: peerText.me,
+          targetLang: peerCode,
+          timestamp: "09:14",
+          sentAt: minutesAgo(180),
+        },
+        {
+          id: "m2",
+          sender: "peer",
+          originalText: peerText.peer,
+          originalLang: peerCode,
+          translatedText: ownText.peer,
+          targetLang: ownCode,
+          timestamp: "10:02",
+          sentAt: minutesAgo(12),
+        },
+      ],
+    };
+  });
+}
+
+function supportedDemoLanguageCode(language: string): "DE" | "FR" | "EN" {
+  const code = languageCode(language);
+  if (code === "DE" || code === "FR" || code === "EN") return code;
+  return "EN";
+}
+
+function demoPeerLanguage(ownCode: "DE" | "FR" | "EN", index: number): "DE" | "FR" | "EN" {
+  const candidates: Array<"DE" | "FR" | "EN"> = index % 2 === 0
+    ? ["FR", "EN", "DE"]
+    : ["EN", "FR", "DE"];
+  return candidates.find((code) => code !== ownCode) ?? "EN";
+}
+
+function hasUserChatMessages(conversations: Conversation[]): boolean {
+  return conversations.some((conversation) =>
+    conversation.messages.some((message) => /^m-\d+$/.test(message.id)),
+  );
+}
+
+const minutesAgo = (minutes: number) =>
+  new Date(Date.now() - minutes * 60_000).toISOString();
+
+const DEMO_CHAT_TEXT = {
+  DE: {
+    me:
+      "Hallo, wir haben gesehen, dass ihr diese Foerdermoeglichkeit fuer Maedchenbildung gespeichert habt. Habt ihr bereits geprueft, ob unsere Organisation antragsberechtigt ist?",
+    peer:
+      "Hallo, wir haben die Kriterien geprueft. Ein lokaler Partner ist verpflichtend, aber eure Organisation kann koordinieren.",
+  },
+  FR: {
+    me:
+      "Bonjour, nous avons vu que vous avez enregistre cette opportunite de financement pour l'education des filles. Avez-vous deja verifie si notre organisation peut deposer une demande ?",
+    peer:
+      "Bonjour, nous avons verifie les criteres. Un partenaire local est obligatoire, mais votre organisation peut coordonner.",
+  },
+  EN: {
+    me:
+      "Hello, we saw that you saved this funding opportunity for girls' education. Have you checked whether our organization is eligible to apply?",
+    peer:
+      "Hello, we checked the criteria. A local partner is required, but your organization can coordinate.",
+  },
+} satisfies Record<"DE" | "FR" | "EN", { me: string; peer: string }>;
