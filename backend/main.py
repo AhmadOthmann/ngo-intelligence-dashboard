@@ -1,10 +1,19 @@
 import os
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from database import init_db
 
-app = FastAPI(title="NGO Intelligence Dashboard API")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    init_db()
+    yield
+
+
+app = FastAPI(title="NGO Intelligence Dashboard API", lifespan=lifespan)
 
 ALLOWED_ORIGINS = [
     "http://localhost:5173",
