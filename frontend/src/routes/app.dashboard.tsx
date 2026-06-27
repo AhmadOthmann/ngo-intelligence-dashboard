@@ -46,7 +46,7 @@ import {
 } from "@/lib/api";
 
 export const Route = createFileRoute("/app/dashboard")({
-  head: () => ({ meta: [{ title: "Dashboard - FieldSignal AI" }] }),
+  head: () => ({ meta: [{ title: "Dashboard - Impact Atlas" }] }),
   component: DashboardPage,
 });
 
@@ -222,7 +222,7 @@ function DashboardPage() {
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
           <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-            NGO Intelligence Dashboard
+            Impact Atlas Dashboard
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
             News, funding, and action briefings for Burundi Kids and WTG.

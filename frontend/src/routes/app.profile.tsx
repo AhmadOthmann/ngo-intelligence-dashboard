@@ -15,7 +15,7 @@ import type { NgoProfile } from "@/lib/types";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/app/profile")({
-  head: () => ({ meta: [{ title: "Profile — FieldSignal AI" }] }),
+  head: () => ({ meta: [{ title: "Profile - Impact Atlas" }] }),
   component: ProfilePage,
 });
 
@@ -64,7 +64,7 @@ function ProfilePage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-foreground">Profile</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            What FieldSignal AI knows about your NGO — and how it routes signals to you.
+            What Impact Atlas knows about your NGO - and how it routes signals to you.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">

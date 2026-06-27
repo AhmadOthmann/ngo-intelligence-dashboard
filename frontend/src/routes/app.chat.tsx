@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { formatChatTime } from "@/lib/utils";
 
 export const Route = createFileRoute("/app/chat")({
-  head: () => ({ meta: [{ title: "Peer Chat - FieldSignal AI" }] }),
+  head: () => ({ meta: [{ title: "Peer Chat - Impact Atlas" }] }),
   component: ChatPage,
 });
 
@@ -94,7 +94,7 @@ function ChatPage() {
         <div className="flex-1 space-y-4 overflow-auto px-4 py-5 md:px-5">
           {active.messages.length === 0 && (
             <div className="rounded-xl border border-dashed border-border bg-secondary/40 p-6 text-center text-sm text-muted-foreground">
-              No messages yet. Start the conversation and FieldSignal will translate it.
+              No messages yet. Start the conversation and Impact Atlas will translate it.
             </div>
           )}
           {active.messages.map((message) => {
@@ -167,7 +167,7 @@ function ChatPage() {
           <textarea
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
-            placeholder="Write in your language. FieldSignal will translate it for the recipient."
+            placeholder="Write in your language. Impact Atlas will translate it for the recipient."
             rows={2}
             className="w-full resize-none rounded-xl border border-border bg-background p-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
           />

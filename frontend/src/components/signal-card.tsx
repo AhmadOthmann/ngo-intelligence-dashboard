@@ -20,7 +20,14 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useAppState } from "@/lib/app-state";
-import { itemToSignal, translateItem, translateText } from "@/lib/api";
+import { translateText } from "@/lib/api";
+import {
+  formatTranslation,
+  importanceLabel,
+  languageOptionLabel,
+  localeFromLanguage,
+  translate,
+} from "@/lib/i18n";
 import type { Signal } from "@/lib/types";
 import { toast } from "sonner";
 
@@ -35,83 +42,67 @@ type Importance = "high" | "medium" | "low";
 
 export function SignalCard({ signal }: { signal: Signal }) {
   const { saveSignal, ignoreSignal, profile } = useAppState();
+  const language = profile?.language;
   const [expanded, setExpanded] = useState(false);
   const [saveOpen, setSaveOpen] = useState(false);
   const [importance, setImportance] = useState<Importance>("medium");
   const [targetLanguage, setTargetLanguage] = useState(
     normalizeTargetLanguage(profile?.language),
   );
-  const [translatedText, setTranslatedText] = useState(
-    cleanTranslationText(signal.translatedText ?? ""),
-  );
+  const [translatedSignal, setTranslatedSignal] = useState<Signal | null>(null);
   const [translatedLanguage, setTranslatedLanguage] = useState(
     signal.translatedLanguage ?? "",
   );
   const [isTranslating, setIsTranslating] = useState(false);
-  const detailPoints = getDetailPoints(signal);
+  const displaySignal = translatedSignal ?? signal;
+  const detailPoints = getDetailPoints(displaySignal);
 
   async function handleTranslate() {
     setIsTranslating(true);
     try {
-      const itemId = getBackendItemId(signal.id);
-      if (itemId == null) {
-        const translated = await translateText(
-          signal.longSummary || signal.summary,
-          targetLanguage,
-        );
-        applyTranslation(translated.translated_text, translated.target_language);
-        return;
-      }
-
-      const translated = itemToSignal(await translateItem(itemId, targetLanguage));
-      applyTranslation(translated.translatedText ?? "", translated.translatedLanguage ?? targetLanguage);
+      const translated = await translateSignalContent(signal, targetLanguage);
+      setTranslatedSignal(translated);
+      setTranslatedLanguage(targetLanguage);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Translation failed");
+      toast.error(error instanceof Error ? error.message : `${translate(language, "translation")} failed`);
     } finally {
       setIsTranslating(false);
     }
   }
 
-  function applyTranslation(text: string, language: string) {
-    const cleaned = cleanTranslationText(text);
-    if (!cleaned) {
-      setTranslatedText("");
-      setTranslatedLanguage("");
-      toast.error("Translation provider did not return a real translation. Restart the backend and try again.");
-      return;
-    }
-    setTranslatedText(cleaned);
-    setTranslatedLanguage(language);
-  }
-
   return (
     <article className="rounded-2xl border border-border bg-card p-4 shadow-[var(--shadow-soft)] transition hover:border-primary/30 sm:p-5">
       <header className="flex flex-wrap items-center gap-2">
-        <TypeBadge type={signal.type} />
-        {signal.aiImportance && <AiImportanceBadge level={signal.aiImportance} />}
-        <span className="text-xs text-muted-foreground">{signal.source}</span>
+        <TypeBadge type={displaySignal.type} language={language} />
+        {displaySignal.aiImportance && <AiImportanceBadge level={displaySignal.aiImportance} language={language} />}
+        <span className="text-xs text-muted-foreground">{displaySignal.source}</span>
         <span className="text-xs text-muted-foreground">/</span>
-        <span className="text-xs text-muted-foreground">{signal.date}</span>
+        <span className="text-xs text-muted-foreground">{displaySignal.date}</span>
+        {translatedSignal && translatedLanguage && (
+          <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
+            {translate(language, "translation")} {translatedLanguage}
+          </span>
+        )}
       </header>
 
       <h3 className="mt-2 text-base font-semibold leading-snug text-foreground sm:text-lg">
-        {signal.title}
+        {displaySignal.title}
       </h3>
-      <p className="mt-1.5 text-sm leading-relaxed text-foreground/80">{signal.summary}</p>
+      <p className="mt-1.5 text-sm leading-relaxed text-foreground/80">{displaySignal.summary}</p>
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <Button size="sm" onClick={() => setSaveOpen(true)}>
-          <Bookmark className="h-4 w-4" /> Save
+          <Bookmark className="h-4 w-4" /> {translate(language, "save")}
         </Button>
         <Button
           size="sm"
           variant="outline"
           onClick={() => {
             ignoreSignal(signal.id);
-            toast("Signal ignored.");
+            toast(translate(language, "signalIgnored"));
           }}
         >
-          <X className="h-4 w-4" /> Ignore
+          <X className="h-4 w-4" /> {translate(language, "ignore")}
         </Button>
         <button
           onClick={() => setExpanded((value) => !value)}
@@ -119,11 +110,11 @@ export function SignalCard({ signal }: { signal: Signal }) {
         >
           {expanded ? (
             <>
-              Hide details <ChevronUp className="h-3.5 w-3.5" />
+              {translate(language, "hideDetails")} <ChevronUp className="h-3.5 w-3.5" />
             </>
           ) : (
             <>
-              Show details <ChevronDown className="h-3.5 w-3.5" />
+              {translate(language, "showDetails")} <ChevronDown className="h-3.5 w-3.5" />
             </>
           )}
         </button>
@@ -132,13 +123,15 @@ export function SignalCard({ signal }: { signal: Signal }) {
       {expanded && (
         <div className="mt-4 space-y-3 border-t border-border pt-4">
           <div className="grid gap-3 sm:grid-cols-2">
-            <DetailBlock label="Why this matters" value={signal.whyRecommended} />
-            <DetailBlock label="Suggested next step" value={signal.suggestedAction} />
+            <DetailBlock label={translate(language, "whyThisMatters")} value={displaySignal.whyRecommended} />
+            <DetailBlock label={translate(language, "suggestedNextStep")} value={displaySignal.suggestedAction} />
           </div>
 
           {detailPoints.length > 0 && (
             <div className="rounded-xl bg-secondary/60 p-3">
-              <div className="mb-1 text-xs font-medium text-foreground">Key details</div>
+              <div className="mb-1 text-xs font-medium text-foreground">
+                {translate(language, "keyDetails")}
+              </div>
               <ul className="space-y-1 text-xs text-foreground/80">
                 {detailPoints.map((point, index) => (
                   <li key={index} className="flex gap-2">
@@ -150,33 +143,33 @@ export function SignalCard({ signal }: { signal: Signal }) {
             </div>
           )}
 
-          {signal.funding && (
+          {displaySignal.funding && (
             <div className="grid grid-cols-2 gap-3 rounded-xl bg-secondary/60 p-3 text-xs sm:grid-cols-4">
-              <Field label="Deadline" value={signal.funding.deadline} />
-              <Field label="Amount" value={signal.funding.amount} />
-              <Field label="Funder" value={signal.funding.funder} />
+              <Field label={translate(language, "deadline")} value={displaySignal.funding.deadline} />
+              <Field label={translate(language, "amount")} value={displaySignal.funding.amount} />
+              <Field label={translate(language, "funder")} value={displaySignal.funding.funder} />
               <div>
-                <div className="text-muted-foreground">Can you apply?</div>
+                <div className="text-muted-foreground">{translate(language, "canYouApply")}</div>
                 <span
-                  className={`mt-0.5 inline-flex rounded-md px-2 py-0.5 text-[11px] font-medium capitalize ${canApplyTone[signal.funding.canApply]}`}
+                  className={`mt-0.5 inline-flex rounded-md px-2 py-0.5 text-[11px] font-medium ${canApplyTone[displaySignal.funding.canApply]}`}
                 >
-                  {signal.funding.canApply}
+                  {canApplyLabel(displaySignal.funding.canApply, language)}
                 </span>
               </div>
               <div className="col-span-2 sm:col-span-4">
-                <div className="text-muted-foreground">Eligibility</div>
-                <div className="text-foreground/80">{signal.funding.eligibility}</div>
+                <div className="text-muted-foreground">{translate(language, "eligibility")}</div>
+                <div className="text-foreground/80">{displaySignal.funding.eligibility}</div>
               </div>
             </div>
           )}
 
-          {signal.peerActivity && signal.peerActivity.length > 0 && (
+          {displaySignal.peerActivity && displaySignal.peerActivity.length > 0 && (
             <div className="flex items-start gap-2 rounded-xl bg-secondary/60 p-3">
               <Users className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
               <div className="text-xs">
-                <div className="font-medium text-foreground">Peer activity</div>
+                <div className="font-medium text-foreground">{translate(language, "peerActivity")}</div>
                 <ul className="text-foreground/80">
-                  {signal.peerActivity.map((activity, index) => (
+                  {displaySignal.peerActivity.map((activity, index) => (
                     <li key={index}>- {activity.text}</li>
                   ))}
                 </ul>
@@ -184,11 +177,13 @@ export function SignalCard({ signal }: { signal: Signal }) {
             </div>
           )}
 
-          {signal.longSummary && (
+          {displaySignal.longSummary && (
             <div className="rounded-xl bg-secondary/60 p-3 text-xs">
-              <div className="mb-1 font-medium text-foreground">Source excerpt</div>
+              <div className="mb-1 font-medium text-foreground">
+                {translate(language, "sourceExcerpt")}
+              </div>
               <p className="leading-relaxed text-foreground/80">
-                {truncate(signal.longSummary, 420)}
+                {truncate(displaySignal.longSummary, 420)}
               </p>
             </div>
           )}
@@ -201,9 +196,9 @@ export function SignalCard({ signal }: { signal: Signal }) {
                 onChange={(event) => setTargetLanguage(event.target.value)}
                 className="rounded-md border border-border bg-card px-2 py-1 text-xs"
               >
-                {LANGUAGE_OPTIONS.map((language) => (
-                  <option key={language} value={language}>
-                    {language}
+                {LANGUAGE_OPTIONS.map((option) => (
+                  <option key={option} value={option}>
+                    {languageOptionLabel(language, option)}
                   </option>
                 ))}
               </select>
@@ -218,24 +213,24 @@ export function SignalCard({ signal }: { signal: Signal }) {
                 ) : (
                   <Languages className="h-4 w-4" />
                 )}
-                Translate
+                {translate(language, "translate")}
               </Button>
             </div>
-            {translatedText && (
-              <p className="mt-3 rounded-lg bg-secondary/60 p-3 text-sm leading-relaxed text-foreground/85">
-                <span className="mb-1 block text-xs font-medium text-muted-foreground">
-                  Translation {translatedLanguage}
-                </span>
-                {translatedText}
-              </p>
+            {translatedSignal && translatedLanguage && (
+              <div className="mt-3 rounded-lg bg-secondary/60 p-3 text-xs text-muted-foreground">
+                {translate(language, "translation")} {translatedLanguage}:{" "}
+                {translationCompleteLabel(language)}
+              </div>
             )}
           </div>
 
           <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
-            <span>Original language: {signal.originalLanguage}</span>
+            <span>
+              {translate(language, "originalLanguage")}: {signal.originalLanguage}
+            </span>
             <Button size="sm" variant="ghost" asChild>
-              <a href={signal.url ?? "#"} target="_blank" rel="noreferrer">
-                <ExternalLink className="h-4 w-4" /> View source
+              <a href={displaySignal.url ?? "#"} target="_blank" rel="noreferrer">
+                <ExternalLink className="h-4 w-4" /> {translate(language, "viewSource")}
               </a>
             </Button>
           </div>
@@ -245,18 +240,18 @@ export function SignalCard({ signal }: { signal: Signal }) {
       <Dialog open={saveOpen} onOpenChange={setSaveOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Save signal - choose importance</DialogTitle>
+            <DialogTitle>{translate(language, "saveSignalTitle")}</DialogTitle>
             <DialogDescription>
-              {signal.aiImportance ? (
+              {displaySignal.aiImportance ? (
                 <>
-                  The AI suggested:{" "}
+                  {translate(language, "theAiSuggested")}{" "}
                   <span className="font-medium capitalize text-foreground">
-                    {signal.aiImportance}
+                    {importanceLabel(language, displaySignal.aiImportance)}
                   </span>
-                  . Please choose how important this is for your organization.
+                  . {translate(language, "chooseImportance")}
                 </>
               ) : (
-                "Please choose how important this is for your organization."
+                translate(language, "chooseImportance")
               )}
             </DialogDescription>
           </DialogHeader>
@@ -277,22 +272,28 @@ export function SignalCard({ signal }: { signal: Signal }) {
                   onChange={() => setImportance(level)}
                   className="accent-[var(--primary)]"
                 />
-                <span className="font-medium capitalize text-foreground">{level} importance</span>
+                <span className="font-medium text-foreground">
+                  {importanceLabel(language, level)}
+                </span>
               </label>
             ))}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setSaveOpen(false)}>
-              Cancel
+              {translate(language, "cancel")}
             </Button>
             <Button
               onClick={() => {
-                saveSignal(signal, importance);
+                saveSignal(displaySignal, importance);
                 setSaveOpen(false);
-                toast.success(`Saved as ${importance} importance`);
+                toast.success(
+                  formatTranslation(language, "savedAs", {
+                    importance: importanceLabel(language, importance).toLowerCase(),
+                  }),
+                );
               }}
             >
-              Save signal
+              {translate(language, "saveSignal")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -319,13 +320,104 @@ function Field({ label, value }: { label: string; value: string }) {
   );
 }
 
-function getBackendItemId(id: string): number | null {
-  const match = /^item-(\d+)$/.exec(id);
-  return match ? Number(match[1]) : null;
-}
-
 function normalizeTargetLanguage(language: string | undefined): string {
   return LANGUAGE_OPTIONS.find((option) => option.toLowerCase() === language?.toLowerCase()) ?? "German";
+}
+
+async function translateSignalContent(signal: Signal, targetLanguage: string): Promise<Signal> {
+  let attempted = 0;
+  let translated = 0;
+
+  async function field(value: string): Promise<string>;
+  async function field(value: string | undefined): Promise<string | undefined>;
+  async function field(value: string | undefined): Promise<string | undefined> {
+    if (!value?.trim()) return value;
+    attempted += 1;
+    try {
+      const result = await translateText(value, targetLanguage);
+      const cleaned = cleanTranslationText(result.translated_text);
+      if (!cleaned) return value;
+      translated += 1;
+      return cleaned;
+    } catch {
+      return value;
+    }
+  }
+
+  const [
+    title,
+    summary,
+    longSummary,
+    whyRecommended,
+    suggestedAction,
+    source,
+    date,
+  ] = await Promise.all([
+    field(signal.title),
+    field(signal.summary),
+    field(signal.longSummary),
+    field(signal.whyRecommended),
+    field(signal.suggestedAction),
+    field(signal.source),
+    field(signal.date),
+  ]);
+
+  const keyPoints = signal.keyPoints
+    ? await Promise.all(signal.keyPoints.map((point) => field(point)))
+    : undefined;
+  const peerActivity = signal.peerActivity
+    ? await Promise.all(
+        signal.peerActivity.map(async (activity) => ({
+          ...activity,
+          text: await field(activity.text),
+        })),
+      )
+    : undefined;
+  const funding = signal.funding
+    ? {
+        ...signal.funding,
+        deadline: await field(signal.funding.deadline),
+        amount: await field(signal.funding.amount),
+        funder: await field(signal.funding.funder),
+        eligibility: await field(signal.funding.eligibility),
+      }
+    : undefined;
+
+  if (attempted > 0 && translated === 0) {
+    throw new Error(translate(targetLanguage, "translationProviderEmpty"));
+  }
+
+  return {
+    ...signal,
+    title,
+    source,
+    date,
+    summary,
+    longSummary,
+    keyPoints,
+    whyRecommended,
+    peerActivity,
+    suggestedAction,
+    funding,
+    translatedLanguage: targetLanguage,
+  };
+}
+
+function canApplyLabel(value: "yes" | "check" | "no", language: string | undefined): string {
+  const locale = localeFromLanguage(language);
+  const labels = {
+    en: { yes: "yes", check: "check", no: "no" },
+    fr: { yes: "oui", check: "a verifier", no: "non" },
+    de: { yes: "ja", check: "pruefen", no: "nein" },
+  } as const;
+  return labels[locale][value];
+}
+
+function translationCompleteLabel(language: string | undefined): string {
+  const locale = localeFromLanguage(language);
+  if (locale === "fr") return "tout le contenu visible de ce signal est traduit.";
+  if (locale === "de") return "alle sichtbaren Inhalte dieses Signals sind uebersetzt.";
+  return "all visible content in this signal is translated.";
 }
 
 function cleanTranslationText(text: string): string {

@@ -11,13 +11,13 @@ export const Route = createFileRoute("/")({
   },
   head: () => ({
     meta: [
-      { title: "FieldSignal AI — NGO intelligence, routed to the right organization" },
+      { title: "Impact Atlas - NGO intelligence, routed to the right organization" },
       {
         name: "description",
         content:
-          "FieldSignal AI helps NGOs discover news, funding, and peer-discovered resources — translated, prioritized, and explained.",
+          "Impact Atlas helps NGOs discover news, funding, and peer-discovered resources - translated, prioritized, and explained.",
       },
-      { property: "og:title", content: "FieldSignal AI" },
+      { property: "og:title", content: "Impact Atlas" },
       {
         property: "og:description",
         content:
@@ -55,8 +55,8 @@ function Landing() {
             Relevant NGO intelligence, routed to the right organization in the right language.
           </h1>
           <p className="mx-auto mt-5 max-w-2xl text-base leading-relaxed text-muted-foreground">
-            FieldSignal AI helps NGOs discover news, funding opportunities, and peer-discovered
-            resources — automatically translated, prioritized, and explained.
+            Impact Atlas helps NGOs discover news, funding opportunities, and peer-discovered
+            resources - automatically translated, prioritized, and explained.
           </p>
           <div className="mt-8 flex flex-wrap justify-center gap-3">
             <Button size="lg" asChild>
@@ -100,14 +100,14 @@ function Landing() {
             Built for small and mid-size NGOs
           </h2>
           <p className="mx-auto mt-3 max-w-2xl text-sm text-muted-foreground">
-            Not a social network. FieldSignal routes signals — funding, news, field reports — to
+            Not a social network. Impact Atlas routes signals - funding, news, field reports - to
             the NGOs they actually matter to. Following peers is optional; relevance comes first.
           </p>
         </section>
       </main>
 
       <footer className="border-t border-border bg-card/60 py-6 text-center text-xs text-muted-foreground">
-        © 2026 FieldSignal AI — for the NGO community.
+        © 2026 Impact Atlas - for the NGO community.
       </footer>
     </div>
   );

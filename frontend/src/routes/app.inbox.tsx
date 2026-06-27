@@ -13,14 +13,22 @@ import { Input } from "@/components/ui/input";
 import { SignalCard } from "@/components/signal-card";
 import { useAppState } from "@/lib/app-state";
 import { getApiStatus, getFunding, getItemsPage, type ApiStatus } from "@/lib/api";
+import {
+  filterLabel,
+  greeting,
+  sortLabel,
+  translate,
+  type FilterKey,
+  type SortKey,
+} from "@/lib/i18n";
 
 export const Route = createFileRoute("/app/inbox")({
-  head: () => ({ meta: [{ title: "Signal Inbox - FieldSignal AI" }] }),
+  head: () => ({ meta: [{ title: "Signal Inbox - Impact Atlas" }] }),
   component: InboxPage,
 });
 
-const FILTERS = ["All", "News", "Funding", "Peer Signals", "Reports"] as const;
-const SORTS = ["Most relevant", "Most urgent", "Newest", "Deadline soon"] as const;
+const FILTERS: FilterKey[] = ["all", "news", "funding", "peer", "reports"];
+const SORTS: SortKey[] = ["mostRelevant", "mostUrgent", "newest", "deadlineSoon"];
 const SUMMARY_LIMIT = 100;
 
 interface InboxSummary {
@@ -45,18 +53,18 @@ function InboxPage() {
     saved,
     profile,
   } = useAppState();
-  const [filter, setFilter] = useState<(typeof FILTERS)[number]>("All");
-  const [sort, setSort] = useState<(typeof SORTS)[number]>("Most relevant");
+  const [filter, setFilter] = useState<FilterKey>("all");
+  const [sort, setSort] = useState<SortKey>("mostRelevant");
   const [q, setQ] = useState("");
   const [summary, setSummary] = useState<InboxSummary | null>(null);
 
   const filtered = useMemo(() => {
     const savedIds = new Set(saved.map((i) => i.signal.id));
     let list = signals.filter((s) => !ignoredIds.has(s.id) && !savedIds.has(s.id));
-    if (filter === "News") list = list.filter((s) => s.type === "news");
-    else if (filter === "Funding") list = list.filter((s) => s.type === "funding");
-    else if (filter === "Peer Signals") list = list.filter((s) => s.type === "peer");
-    else if (filter === "Reports") list = list.filter((s) => s.type === "report");
+    if (filter === "news") list = list.filter((s) => s.type === "news");
+    else if (filter === "funding") list = list.filter((s) => s.type === "funding");
+    else if (filter === "peer") list = list.filter((s) => s.type === "peer");
+    else if (filter === "reports") list = list.filter((s) => s.type === "report");
 
     if (signalSource === "demo" && q.trim()) {
       const needle = q.toLowerCase();
@@ -67,17 +75,15 @@ function InboxPage() {
       );
     }
 
-    if (sort === "Most urgent") {
+    if (sort === "mostUrgent") {
       const rank = { urgent: 0, relevant: 1, info: 2 } as const;
       list = [...list].sort((a, b) => rank[a.priority] - rank[b.priority]);
     }
     return list;
   }, [signals, ignoredIds, saved, filter, sort, q, signalSource]);
 
-  const greeting = useMemo(() => {
-    const h = new Date().getHours();
-    return h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
-  }, []);
+  const language = profile?.language;
+  const localizedGreeting = useMemo(() => greeting(language), [language]);
 
   const fallbackSummary = useMemo<InboxSummary>(
     () => ({
@@ -127,51 +133,57 @@ function InboxPage() {
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-              {greeting}, {profile?.name ?? "your NGO"}
+              {localizedGreeting}, {profile?.name ?? translate(language, "yourNgo")}
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              Here are the most relevant signals for your organization today.
+              {inboxSubtitle(language)}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <Button variant="outline" size="sm" onClick={() => void handleRefresh()} disabled={isLoadingSignals}>
               <RefreshCw className={`h-4 w-4 ${isLoadingSignals ? "animate-spin" : ""}`} />
-              Refresh
+              {translate(language, "refresh")}
             </Button>
             <Button size="sm" onClick={() => void handleUpdateSignals()} disabled={isLoadingSignals}>
               <RefreshCw className={`h-4 w-4 ${isLoadingSignals ? "animate-spin" : ""}`} />
-              Update Signals
+              {translate(language, "updateSignals")}
             </Button>
           </div>
         </div>
         <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
           {ingestResult && (
             <span>
-              Last update: {ingestResult.ingested} new signal{ingestResult.ingested === 1 ? "" : "s"}
-              {ingestResult.errors.length > 0 ? `, ${ingestResult.errors.length} source issue${ingestResult.errors.length === 1 ? "" : "s"}` : ""}
+              {translate(language, "lastUpdate")}: {ingestResult.ingested}{" "}
+              {translate(language, ingestResult.ingested === 1 ? "newSignal" : "newSignals")}
+              {ingestResult.errors.length > 0
+                ? `, ${ingestResult.errors.length} ${translate(
+                    language,
+                    ingestResult.errors.length === 1 ? "sourceIssue" : "sourceIssues",
+                  )}`
+                : ""}
             </span>
           )}
         </div>
         {signalError && (
           <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-            {signalError}. Showing sample signals until live sources are available.
+            {signalError}. {translate(language, "sourceErrorFallback")}
           </div>
         )}
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Metric icon={Database} label="Signals" value={String(activeSummary.signals)} />
-        <Metric icon={BadgeDollarSign} label="Funding leads" value={String(activeSummary.fundingLeads)} />
-        <Metric icon={Wand2} label="Priority signals" value={String(activeSummary.prioritySignals)} />
+        <Metric icon={Database} label={translate(language, "signals")} value={String(activeSummary.signals)} />
+        <Metric icon={BadgeDollarSign} label={translate(language, "fundingLeads")} value={String(activeSummary.fundingLeads)} />
+        <Metric icon={Wand2} label={translate(language, "prioritySignals")} value={String(activeSummary.prioritySignals)} />
         <Metric
           icon={Wand2}
-          label="Analysis"
+          label={translate(language, "analysis")}
           value={
             activeSummary.status
               ? activeSummary.status.openai_configured
-                ? "Enhanced"
-                : "Basic"
-              : "Basic"
+                ? translate(language, "enhanced")
+                : translate(language, "basic")
+              : translate(language, "basic")
           }
         />
       </div>
@@ -189,36 +201,40 @@ function InboxPage() {
             <Input
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="Search signals by keyword"
+              placeholder={translate(language, "searchPlaceholder")}
               className="pl-9"
             />
           </div>
           <Button type="submit" variant="outline" disabled={isLoadingSignals}>
-            Search
+            {translate(language, "search")}
           </Button>
         </form>
         <div className="flex flex-wrap items-center gap-3">
           <label className="flex items-center gap-2 text-xs text-muted-foreground">
-            Filter:
+            {translate(language, "filter")}:
             <select
               value={filter}
-              onChange={(e) => setFilter(e.target.value as (typeof FILTERS)[number])}
+              onChange={(e) => setFilter(e.target.value as FilterKey)}
               className="rounded-md border border-border bg-card px-2 py-1 text-xs"
             >
               {FILTERS.map((f) => (
-                <option key={f}>{f}</option>
+                <option key={f} value={f}>
+                  {filterLabel(language, f)}
+                </option>
               ))}
             </select>
           </label>
           <label className="ml-auto flex items-center gap-2 text-xs text-muted-foreground">
-            Sort:
+            {translate(language, "sort")}:
             <select
               value={sort}
-              onChange={(e) => setSort(e.target.value as (typeof SORTS)[number])}
+              onChange={(e) => setSort(e.target.value as SortKey)}
               className="rounded-md border border-border bg-card px-2 py-1 text-xs"
             >
               {SORTS.map((s) => (
-                <option key={s}>{s}</option>
+                <option key={s} value={s}>
+                  {sortLabel(language, s)}
+                </option>
               ))}
             </select>
           </label>
@@ -228,7 +244,7 @@ function InboxPage() {
       <div className="space-y-4">
         {filtered.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-border bg-card p-10 text-center text-sm text-muted-foreground">
-            No signals match your filters yet. AI keeps learning from what you save and ignore.
+            {translate(language, "noSignals")}
           </div>
         ) : (
           filtered.map((s) => <SignalCard key={s.id} signal={s} />)
@@ -238,12 +254,23 @@ function InboxPage() {
       {signalSource === "backend" && hasMoreSignals && (
         <div className="flex justify-center">
           <Button variant="outline" onClick={() => void loadMoreSignals()} disabled={isLoadingSignals}>
-            {isLoadingSignals ? "Loading..." : "Load more"}
+            {isLoadingSignals ? translate(language, "loading") : translate(language, "loadMore")}
           </Button>
         </div>
       )}
     </div>
   );
+}
+
+function inboxSubtitle(language: string | undefined): string {
+  const locale = language?.trim().toLowerCase() ?? "";
+  if (locale.startsWith("german") || locale === "de" || locale === "deutsch") {
+    return "Hier sind die relevantesten Signale fuer Ihre Organisation heute.";
+  }
+  if (locale.startsWith("french") || locale === "fr" || locale.startsWith("franc")) {
+    return "Voici les signaux les plus pertinents pour votre organisation aujourd'hui.";
+  }
+  return "Here are the most relevant signals for your organization today.";
 }
 
 function Metric({

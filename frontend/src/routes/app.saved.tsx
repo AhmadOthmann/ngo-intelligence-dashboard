@@ -19,7 +19,7 @@ import { toast } from "sonner";
 import { BURUNDI_KIDS } from "@/lib/demo-data";
 
 export const Route = createFileRoute("/app/saved")({
-  head: () => ({ meta: [{ title: "Tags - FieldSignal AI" }] }),
+  head: () => ({ meta: [{ title: "Tags - Impact Atlas" }] }),
   component: SavedPage,
 });
 

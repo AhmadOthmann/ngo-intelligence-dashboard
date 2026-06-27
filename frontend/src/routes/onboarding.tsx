@@ -16,7 +16,7 @@ import type { NgoProfile } from "@/lib/types";
 export const Route = createFileRoute("/onboarding")({
   head: () => ({
     meta: [
-      { title: "Onboarding — FieldSignal AI" },
+      { title: "Onboarding - Impact Atlas" },
       { name: "description", content: "Build your AI relevance profile." },
     ],
   }),
@@ -421,7 +421,7 @@ function Onboarding() {
 
           {step === 4 && (
             <div className="space-y-5">
-              <SectionHead title="Your AI Relevance Profile" subtitle="This is what FieldSignal will use to route signals to you." />
+              <SectionHead title="Your AI Relevance Profile" subtitle="This is what Impact Atlas will use to route signals to you." />
               <div className="rounded-xl border border-border bg-secondary/40 p-5 text-sm">
                 <ProfileRow label="Organization" value={finalProfile.name} />
                 <ProfileRow label="Country" value={finalProfile.country} />

@@ -8,8 +8,8 @@ import { Label } from "@/components/ui/label";
 export const Route = createFileRoute("/signup")({
   head: () => ({
     meta: [
-      { title: "Sign up — FieldSignal AI" },
-      { name: "description", content: "Create your NGO profile on FieldSignal AI." },
+      { title: "Sign up - Impact Atlas" },
+      { name: "description", content: "Create your NGO profile on Impact Atlas." },
     ],
   }),
   component: SignupPage,
