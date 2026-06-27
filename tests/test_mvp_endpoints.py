@@ -9,9 +9,16 @@ from fastapi.testclient import TestClient
 
 from backend.database import create_item
 from backend.main import app
+from backend.models import ScrapeResult
 
 
-def test_mvp_endpoints_use_sqlite_and_fallback_analysis() -> None:
+def test_mvp_endpoints_use_sqlite_and_fallback_analysis(monkeypatch) -> None:
+    class FakeWebScraper:
+        def scrape(self, **kwargs) -> ScrapeResult:
+            return ScrapeResult(scraped=1, skipped=0, errors=[])
+
+    monkeypatch.setattr("backend.main.WebScraperService", lambda: FakeWebScraper())
+
     with TestClient(app) as client:
         create_item(
             title="BMZ call for proposals for Burundi education projects",
@@ -36,6 +43,12 @@ def test_mvp_endpoints_use_sqlite_and_fallback_analysis() -> None:
         health = client.get("/health").json()
         assert health["status"] == "ok"
         assert health["openai_configured"] is False
+
+        scraped = client.post(
+            "/ingest/web",
+            json={"urls": ["https://example.org"], "max_pages": 1, "follow_links": False},
+        ).json()
+        assert scraped == {"scraped": 1, "skipped": 0, "errors": []}
 
         items_response = client.get("/items?limit=10&offset=0").json()
         assert items_response["count"] == 2

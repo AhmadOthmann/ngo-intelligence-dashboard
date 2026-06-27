@@ -39,6 +39,7 @@ import {
   getFunding,
   getItemsPage,
   ingestRss,
+  scrapeWeb,
   translateItem,
   type ApiStatus,
   type BackendItem,
@@ -70,6 +71,7 @@ type CategoryFilter = (typeof CATEGORY_OPTIONS)[number]["value"];
 type ActionState =
   | "refresh"
   | "ingest"
+  | "scrape"
   | "analyze-all"
   | "analyze-item"
   | "translate"
@@ -151,6 +153,24 @@ function DashboardPage() {
       await loadDashboard(undefined, "refresh");
     } catch (err) {
       setError(err instanceof Error ? err.message : "RSS ingestion failed");
+      setAction(null);
+    }
+  }
+
+  async function handleScrapeWeb() {
+    setNotice(null);
+    setError(null);
+    setAction("scrape");
+    try {
+      const result = await scrapeWeb();
+      setNotice(
+        `Web scraper stored ${result.scraped} page${result.scraped === 1 ? "" : "s"}${
+          result.skipped ? ` and skipped ${result.skipped}` : ""
+        }${result.errors.length ? ` with ${result.errors.length} scrape error(s)` : ""}.`,
+      );
+      await loadDashboard(undefined, "refresh");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Web scraping failed");
       setAction(null);
     }
   }
@@ -270,6 +290,10 @@ function DashboardPage() {
           <Button variant="outline" onClick={() => void handleIngest()} disabled={isBusy}>
             {action === "ingest" ? <Loader2 className="animate-spin" /> : <Rss />}
             Ingest RSS
+          </Button>
+          <Button variant="outline" onClick={() => void handleScrapeWeb()} disabled={isBusy}>
+            {action === "scrape" ? <Loader2 className="animate-spin" /> : <Search />}
+            Scrape Web
           </Button>
           <Button onClick={() => void handleAnalyzeAll()} disabled={isBusy}>
             {action === "analyze-all" ? <Loader2 className="animate-spin" /> : <Wand2 />}

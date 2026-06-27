@@ -1,9 +1,9 @@
 # NGO Intelligence Dashboard
 
 Demo-ready MVP for the AI 4 Good Hackathon. The app helps Burundi Kids and WTG
-turn RSS news and funding feeds into practical NGO intelligence: relevant items,
-funding opportunities, summaries, recommended actions, translations, and a daily
-briefing.
+turn RSS feeds and real web pages into practical NGO intelligence: relevant
+items, funding opportunities, summaries, recommended actions, translations, and
+a daily briefing.
 
 ## Why This Solves The Challenge
 
@@ -16,6 +16,7 @@ funding, translate key updates, and brief the team quickly.
 - FastAPI backend on `http://127.0.0.1:8000`
 - SQLite database stored in `items.db`
 - RSS ingestion with `feedparser`
+- HTML web scraping with `requests` and `BeautifulSoup`
 - OpenAI Responses API when `AI_PROVIDER=openai` and a real `OPENAI_API_KEY` is set
 - Deterministic fallback logic when OpenAI is not configured or a model call fails
 - React + Vite frontend on `http://127.0.0.1:5173`
@@ -95,10 +96,11 @@ npm run dev
 2. Start frontend: `cd frontend; npm run dev`
 3. Open `http://127.0.0.1:5173/app/dashboard`
 4. Click `Ingest RSS`
-5. Click `Analyze all`
-6. Review stats, item table, funding section, and digest
-7. Open an item and translate it to German, French, or English
-8. For a clean scripted demo, call `POST /demo/reset`, then refresh the dashboard
+5. Click `Scrape Web` to fetch readable text from configured web pages
+6. Click `Analyze all`
+7. Review stats, item table, funding section, and digest
+8. Open an item and translate it to German, French, or English
+9. For a clean scripted demo, call `POST /demo/reset`, then refresh the dashboard
 
 ## API Usage Note
 
@@ -107,6 +109,7 @@ Core endpoints:
 ```text
 GET /health
 POST /ingest/rss
+POST /ingest/web
 GET /items
 GET /items/{id}
 GET /funding
@@ -137,6 +140,24 @@ Translation body:
 }
 ```
 
+Web scraping body:
+
+```json
+{
+  "urls": [
+    "https://example.org"
+  ],
+  "max_pages": 10,
+  "follow_links": true,
+  "respect_robots": true
+}
+```
+
+If `urls` is omitted, the backend uses curated seed pages for Burundi, funding,
+and animal welfare topics. The scraper fetches real HTML, extracts readable
+content, follows same-domain relevant links when enabled, and stores pages in
+SQLite.
+
 ## Backend Smoke Test Sequence
 
 With backend running, test in Swagger or with HTTP tools:
@@ -144,6 +165,7 @@ With backend running, test in Swagger or with HTTP tools:
 ```text
 GET /health
 POST /demo/reset
+POST /ingest/web
 GET /items
 POST /analyze/all
 GET /items
@@ -172,3 +194,4 @@ npm run build
 - Browser page does not open from PowerShell: use `start http://127.0.0.1:8000/docs`.
 - `/health` says `openai_configured: false`: replace the placeholder key in `.env` with a real OpenAI platform API key.
 - RSS ingestion can show upstream feed errors. The endpoint still returns the errors without crashing the app.
+- Web scraping depends on target site availability, robots rules, and HTML structure. Use known source URLs for the best results.

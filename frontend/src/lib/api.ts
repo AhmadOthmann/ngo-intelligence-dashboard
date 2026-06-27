@@ -48,6 +48,12 @@ export interface IngestResult {
   errors: Array<{ feed_url: string; error: string }>;
 }
 
+export interface ScrapeResult {
+  scraped: number;
+  skipped: number;
+  errors: Array<{ url: string; error: string }>;
+}
+
 export interface DigestResult {
   generated_at: string;
   headline: string;
@@ -144,6 +150,22 @@ export async function ingestRss(feeds?: string[]): Promise<IngestResult> {
   });
   if (!response.ok) {
     throw new Error(`RSS ingestion failed (${response.status})`);
+  }
+  return response.json();
+}
+
+export async function scrapeWeb(): Promise<ScrapeResult> {
+  const response = await fetch(`${API_BASE_URL}/ingest/web`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      max_pages: 10,
+      follow_links: true,
+      respect_robots: true,
+    }),
+  });
+  if (!response.ok) {
+    throw new Error(`Web scraping failed (${response.status})`);
   }
   return response.json();
 }

@@ -29,8 +29,11 @@ from .models import (
     IngestResult,
     Item,
     ItemsResponse,
+    ScrapeRequest,
+    ScrapeResult,
     TranslateRequest,
 )
+from .web_scraper_service import WebScraperService
 
 
 DEMO_ITEMS = [
@@ -150,6 +153,27 @@ def ingest_rss(request: IngestRequest | None = None) -> IngestResult:
         raise HTTPException(status_code=400, detail="Maximum number of feeds is 20")
 
     return IngestService().ingest(feeds)
+
+
+@app.post(
+    "/ingest/web",
+    response_model=ScrapeResult,
+    summary="Scrape web pages",
+    description=(
+        "Fetches real HTML pages, extracts readable content, optionally follows "
+        "relevant links from seed pages, and stores scraped pages in SQLite."
+    ),
+)
+def ingest_web(request: ScrapeRequest | None = None) -> ScrapeResult:
+    request = request or ScrapeRequest()
+    if request.urls is not None and len(request.urls) > 20:
+        raise HTTPException(status_code=400, detail="Maximum number of seed URLs is 20")
+    return WebScraperService().scrape(
+        urls=request.urls,
+        max_pages=request.max_pages,
+        follow_links=request.follow_links,
+        respect_robots=request.respect_robots,
+    )
 
 
 @app.get(
@@ -303,11 +327,13 @@ def demo_reset() -> dict[str, Any]:
 @app.post("/demo/run")
 def demo_run() -> dict[str, Any]:
     ingest_result = IngestService().ingest()
+    scrape_result = WebScraperService().scrape(max_pages=8, follow_links=True)
     analyzed = AnalysisService().analyze_all(limit=50)
     digest = AnalysisService().digest()
     return {
         "status": "ok",
         "ingest": ingest_result.model_dump(),
+        "scrape": scrape_result.model_dump(),
         "analysis": analyzed.model_dump(),
         "digest": digest.model_dump(mode="json"),
     }

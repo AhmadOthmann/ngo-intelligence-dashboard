@@ -6,4 +6,6 @@ python-dotenv
 httpx
 langdetect
 openai
+requests
+beautifulsoup4
 pytest

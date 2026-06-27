@@ -83,6 +83,19 @@ class IngestResult(BaseModel):
     errors: list[dict[str, Any]]
 
 
+class ScrapeRequest(BaseModel):
+    urls: Optional[list[str]] = None
+    max_pages: int = Field(default=10, ge=1, le=30)
+    follow_links: bool = True
+    respect_robots: bool = True
+
+
+class ScrapeResult(BaseModel):
+    scraped: int
+    skipped: int
+    errors: list[dict[str, Any]]
+
+
 class TranslateRequest(BaseModel):
     target_language: str
 

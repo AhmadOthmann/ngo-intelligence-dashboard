@@ -4,6 +4,7 @@
 
 - FastAPI backend with SQLite persistence
 - RSS ingestion through `POST /ingest/rss`
+- Real HTML web scraping through `POST /ingest/web`
 - Searchable, paginated item listing from SQLite
 - Item detail endpoint
 - Funding opportunity endpoint with flag and keyword fallback
@@ -20,6 +21,7 @@
 - `GET /`
 - `GET /health`
 - `POST /ingest/rss`
+- `POST /ingest/web`
 - `GET /items`
 - `GET /items/{id}`
 - `GET /funding`
@@ -44,6 +46,7 @@
 - Recommended action
 - Translation to German, French, or English
 - Daily briefing digest
+- Web page text extraction from configured URLs and relevant same-domain links
 
 ## Fallback Behavior
 
@@ -54,6 +57,7 @@ valid JSON fields and keeps the demo working.
 ## Known Limitations
 
 - RSS feeds may occasionally fail upstream.
+- Web scraping depends on target site availability, robots rules, and page structure.
 - SQLite is local and single-user.
 - No authentication or team accounts.
 - No scheduled ingestion.
