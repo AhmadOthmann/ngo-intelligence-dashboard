@@ -1,6 +1,6 @@
 import { Link, Outlet, createFileRoute, useRouterState } from "@tanstack/react-router";
 import { useEffect } from "react";
-import { Bookmark, LayoutDashboard, Radio } from "lucide-react";
+import { Bookmark, Inbox, LayoutDashboard, Radio } from "lucide-react";
 import { useAppState } from "@/lib/app-state";
 
 export const Route = createFileRoute("/app")({
@@ -9,6 +9,7 @@ export const Route = createFileRoute("/app")({
 
 const NAV = [
   { to: "/app/dashboard", label: "Intelligence", icon: LayoutDashboard },
+  { to: "/app/inbox", label: "Inbox", icon: Inbox },
   { to: "/app/saved", label: "Saved Signals", icon: Bookmark },
 ] as const;
 
