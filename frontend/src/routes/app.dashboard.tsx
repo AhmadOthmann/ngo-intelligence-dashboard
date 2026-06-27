@@ -37,7 +37,7 @@ import {
   getApiStatus,
   getDigest,
   getFunding,
-  getItems,
+  getItemsPage,
   ingestRss,
   translateItem,
   type ApiStatus,
@@ -53,20 +53,33 @@ export const Route = createFileRoute("/app/dashboard")({
 const PAGE_LIMIT = 100;
 const CATEGORY_OPTIONS = [
   { value: "all", label: "All categories" },
-  { value: "news", label: "News" },
-  { value: "funding", label: "Funding" },
-  { value: "policy", label: "Policy" },
-  { value: "research", label: "Research" },
-  { value: "other", label: "Other" },
+  { value: "Burundi", label: "Burundi" },
+  { value: "Funding", label: "Funding" },
+  { value: "Health", label: "Health" },
+  { value: "Education", label: "Education" },
+  { value: "GBV", label: "GBV" },
+  { value: "Animal Welfare", label: "Animal Welfare" },
+  { value: "Humanitarian", label: "Humanitarian" },
+  { value: "Politics/Security", label: "Politics/Security" },
+  { value: "Development", label: "Development" },
+  { value: "Other", label: "Other" },
 ] as const;
 const LANGUAGE_OPTIONS = ["German", "French", "English"] as const;
 
 type CategoryFilter = (typeof CATEGORY_OPTIONS)[number]["value"];
-type ActionState = "refresh" | "ingest" | "analyze-all" | "analyze-item" | "translate" | null;
+type ActionState =
+  | "refresh"
+  | "ingest"
+  | "analyze-all"
+  | "analyze-item"
+  | "translate"
+  | "digest"
+  | null;
 
 function DashboardPage() {
   const [status, setStatus] = useState<ApiStatus | null>(null);
   const [items, setItems] = useState<BackendItem[]>([]);
+  const [totalItems, setTotalItems] = useState(0);
   const [fundingItems, setFundingItems] = useState<BackendItem[]>([]);
   const [digest, setDigest] = useState<DigestResult | null>(null);
   const [selectedId, setSelectedId] = useState<number | null>(null);
@@ -93,7 +106,7 @@ function DashboardPage() {
     try {
       const [nextStatus, nextItems, nextFunding, nextDigest] = await Promise.all([
         getApiStatus(),
-        getItems({
+        getItemsPage({
           q: filters.q,
           category: filters.category === "all" ? undefined : filters.category,
           fundingOnly: filters.fundingOnly,
@@ -104,9 +117,10 @@ function DashboardPage() {
         getDigest(),
       ]);
 
-      const visibleItems = uniqueItems([...nextItems, ...nextFunding]);
+      const visibleItems = uniqueItems([...nextItems.items, ...nextFunding]);
       setStatus(nextStatus);
-      setItems(nextItems);
+      setItems(nextItems.items);
+      setTotalItems(nextItems.count);
       setFundingItems(nextFunding);
       setDigest(nextDigest);
       setSelectedId((current) =>
@@ -155,6 +169,21 @@ function DashboardPage() {
       await loadDashboard(undefined, "refresh");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Bulk analysis failed");
+      setAction(null);
+    }
+  }
+
+  async function handleGenerateDigest() {
+    setNotice(null);
+    setError(null);
+    setAction("digest");
+    try {
+      const nextDigest = await getDigest();
+      setDigest(nextDigest);
+      setNotice("Generated NGO briefing digest.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Digest generation failed");
+    } finally {
       setAction(null);
     }
   }
@@ -215,6 +244,8 @@ function DashboardPage() {
   }
 
   const isBusy = action !== null;
+  const highRelevanceCount = items.filter((item) => (item.relevance_score ?? 0) >= 75).length;
+  const translatedCount = items.filter((item) => item.translated_text).length;
 
   return (
     <div className="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6 lg:px-8">
@@ -244,14 +275,37 @@ function DashboardPage() {
             {action === "analyze-all" ? <Loader2 className="animate-spin" /> : <Wand2 />}
             Analyze all
           </Button>
+          <Button variant="outline" onClick={() => void handleGenerateDigest()} disabled={isBusy}>
+            {action === "digest" ? <Loader2 className="animate-spin" /> : <Database />}
+            Generate Digest
+          </Button>
         </div>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Metric icon={Server} label="API status" value={status?.status ?? "offline"} />
-        <Metric icon={Database} label="Items" value={String(items.length)} />
+        <Metric
+          icon={Server}
+          label="API health"
+          value={status ? `${status.status} / DB ${status.database}` : "offline"}
+        />
+        <Metric icon={Database} label="Total items" value={String(totalItems)} />
         <Metric icon={BadgeDollarSign} label="Funding" value={String(fundingItems.length)} />
-        <Metric icon={Wand2} label="AI provider" value={status?.ai_provider ?? "none"} />
+        <Metric
+          icon={Wand2}
+          label="AI mode"
+          value={
+            status
+              ? `${status.ai_provider}${status.openai_configured ? " active" : " fallback"}`
+              : "unknown"
+          }
+        />
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <Metric icon={Wand2} label="High relevance" value={String(highRelevanceCount)} />
+        <Metric icon={Languages} label="Translated" value={String(translatedCount)} />
+        <Metric icon={BadgeDollarSign} label="Funding view" value={fundingOnly ? "on" : "off"} />
+        <Metric icon={Search} label="Search results" value={String(items.length)} />
       </div>
 
       {(notice || error) && (
@@ -321,15 +375,16 @@ function DashboardPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Title</TableHead>
-                  <TableHead className="hidden w-28 md:table-cell">Category</TableHead>
+                  <TableHead className="hidden w-32 md:table-cell">Category</TableHead>
                   <TableHead className="hidden w-24 md:table-cell">Score</TableHead>
+                  <TableHead className="hidden min-w-[180px] lg:table-cell">Action</TableHead>
                   <TableHead className="w-28">Source</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {items.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
+                    <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
                       No items found.
                     </TableCell>
                   </TableRow>
@@ -359,6 +414,11 @@ function DashboardPage() {
                       </TableCell>
                       <TableCell className="hidden md:table-cell">
                         {formatScore(item.relevance_score)}
+                      </TableCell>
+                      <TableCell className="hidden text-xs text-muted-foreground lg:table-cell">
+                        <span className="line-clamp-2">
+                          {item.recommended_action ?? "Analyze to generate action."}
+                        </span>
                       </TableCell>
                       <TableCell className="max-w-[130px] truncate text-xs text-muted-foreground">
                         {item.source}
@@ -415,9 +475,19 @@ function DashboardPage() {
                 {digest ? formatDate(digest.generated_at) : "Pending"}
               </Badge>
             </div>
-            <p className="mt-3 text-sm leading-6 text-muted-foreground">
-              {digest?.summary_text ?? "Digest unavailable."}
+            <h3 className="mt-3 text-base font-semibold text-foreground">
+              {digest?.headline ?? "Digest unavailable"}
+            </h3>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+              {digest?.executive_summary ?? "Generate a digest after ingesting or analyzing items."}
             </p>
+            <DigestList title="Top priorities" items={digest?.top_priorities ?? []} />
+            <DigestList
+              title="Funding opportunities"
+              items={digest?.funding_opportunities ?? []}
+            />
+            <DigestList title="Recommended actions" items={digest?.recommended_actions ?? []} />
+            <DigestList title="Risk alerts" items={digest?.risk_alerts ?? []} />
             <div className="mt-4 space-y-2">
               {(digest?.top_items ?? []).slice(0, 3).map((item) => (
                 <button
@@ -475,6 +545,25 @@ function DashboardPage() {
                   <p className="mt-1 text-sm leading-6 text-foreground">
                     {selectedItem.summary ?? truncate(cleanText(selectedItem.raw_text), 360)}
                   </p>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <div className="text-xs font-medium uppercase text-muted-foreground">
+                      Why relevant
+                    </div>
+                    <p className="mt-1 text-sm leading-6 text-foreground">
+                      {selectedItem.why_relevant ?? "Analyze this item to generate NGO relevance."}
+                    </p>
+                  </div>
+                  <div>
+                    <div className="text-xs font-medium uppercase text-muted-foreground">
+                      Recommended action
+                    </div>
+                    <p className="mt-1 text-sm leading-6 text-foreground">
+                      {selectedItem.recommended_action ?? "Analyze this item to generate next steps."}
+                    </p>
+                  </div>
                 </div>
 
                 <div>
@@ -565,6 +654,22 @@ function Metric({
   );
 }
 
+function DigestList({ title, items }: { title: string; items: string[] }) {
+  if (items.length === 0) return null;
+  return (
+    <div className="mt-4">
+      <div className="text-xs font-medium uppercase text-muted-foreground">{title}</div>
+      <ul className="mt-2 space-y-1.5 text-sm leading-6 text-foreground">
+        {items.map((item) => (
+          <li key={item} className="rounded-md border border-border bg-background px-3 py-2">
+            {item}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 function uniqueItems(items: BackendItem[]): BackendItem[] {
   const seen = new Set<number>();
   return items.filter((item) => {
@@ -575,11 +680,11 @@ function uniqueItems(items: BackendItem[]): BackendItem[] {
 }
 
 function categoryLabel(category: BackendItem["category"]): string {
-  return category ? category[0].toUpperCase() + category.slice(1) : "Unanalyzed";
+  return category ?? "Unanalyzed";
 }
 
 function formatScore(score: number | null): string {
-  return score == null ? "No score" : `${Math.round(score * 100)}%`;
+  return score == null ? "No score" : `${Math.round(score)}%`;
 }
 
 function formatDate(value: string): string {

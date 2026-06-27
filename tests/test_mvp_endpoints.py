@@ -33,22 +33,32 @@ def test_mvp_endpoints_use_sqlite_and_fallback_analysis() -> None:
         )
 
         assert client.get("/").json()["status"] == "ok"
-        assert len(client.get("/items?limit=10&offset=0").json()) == 2
-        assert len(client.get("/items?q=Burundi").json()) == 1
-        assert len(client.get("/items?funding_only=true").json()) == 1
+        health = client.get("/health").json()
+        assert health["status"] == "ok"
+        assert health["openai_configured"] is False
+
+        items_response = client.get("/items?limit=10&offset=0").json()
+        assert items_response["count"] == 2
+        assert len(items_response["items"]) == 2
+        assert len(client.get("/items?q=Burundi").json()["items"]) == 1
+        assert len(client.get("/items?funding_only=true").json()["items"]) == 1
         assert len(client.get("/funding").json()) == 1
 
         digest = client.get("/digest").json()
         assert "generated_at" in digest
-        assert "summary_text" in digest
+        assert "executive_summary" in digest
 
         analyzed = client.post("/analyze/all?limit=10").json()
         assert analyzed == {"analyzed": 2, "errors": []}
 
-        item = client.get("/items?q=Burundi").json()[0]
-        assert item["category"] == "funding"
+        item = client.get("/items?q=Burundi").json()["items"][0]
+        assert item["category"] == "Funding"
         assert item["is_funding_opportunity"] is True
         assert item["deadline"] == "2026-08-15"
+        assert item["target_org"] == "Burundi Kids"
+        assert item["why_relevant"]
+        assert item["recommended_action"]
+        assert 0 <= item["relevance_score"] <= 100
 
         translated = client.post(
             f"/translate/{item['id']}",

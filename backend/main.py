@@ -1,5 +1,6 @@
 import os
 from contextlib import asynccontextmanager
+from typing import Any
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Path, Query
@@ -7,18 +8,89 @@ from fastapi.middleware.cors import CORSMiddleware
 
 load_dotenv()
 
+from .ai_service import AIService
 from .analysis_service import AnalysisService
-from .database import get_item, init_db, list_items
-from .database import list_funding_items
+from .database import (
+    clear_items,
+    count_items,
+    create_item,
+    database_ok,
+    get_item,
+    init_db,
+    list_funding_items,
+    list_items,
+)
 from .ingest_service import IngestService
 from .models import (
     AnalyzeAllResponse,
-    DigestMVPResponse,
+    DigestResponse,
+    HealthResponse,
     IngestRequest,
     IngestResult,
     Item,
+    ItemsResponse,
     TranslateRequest,
 )
+
+
+DEMO_ITEMS = [
+    {
+        "title": "BMZ small grants call for education projects in Burundi",
+        "url": "https://example.org/demo/bmz-burundi-education",
+        "source": "demo",
+        "published_at": "2026-06-27T09:00:00Z",
+        "language": "en",
+        "raw_text": (
+            "BMZ and a German foundation opened a call for proposals for small NGOs "
+            "supporting education, vocational training, and girls in Burundi. "
+            "Applications are due 2026-08-15."
+        ),
+    },
+    {
+        "title": "Gitega school network requests partners for vocational training",
+        "url": "https://example.org/demo/gitega-vocational-training",
+        "source": "demo",
+        "published_at": "2026-06-27T10:00:00Z",
+        "language": "en",
+        "raw_text": (
+            "Schools near Gitega and Gateri are seeking NGO partners for vocational "
+            "training, school materials, and support for girls at risk of dropping out."
+        ),
+    },
+    {
+        "title": "Animal welfare groups warn of rising donkey skin trade",
+        "url": "https://example.org/demo/donkey-skin-trade",
+        "source": "demo",
+        "published_at": "2026-06-27T11:00:00Z",
+        "language": "en",
+        "raw_text": (
+            "Regional animal welfare organizations report increased donkey skin trade "
+            "and puppy trafficking risks, with calls for advocacy and farm animal protection."
+        ),
+    },
+    {
+        "title": "Rabies vaccination campaign seeks NGO coordination",
+        "url": "https://example.org/demo/rabies-campaign",
+        "source": "demo",
+        "published_at": "2026-06-27T12:00:00Z",
+        "language": "en",
+        "raw_text": (
+            "A rabies response campaign needs animal welfare NGOs to coordinate local "
+            "education, vaccination messaging, and community reporting."
+        ),
+    },
+    {
+        "title": "Great Lakes humanitarian update flags border displacement",
+        "url": "https://example.org/demo/great-lakes-displacement",
+        "source": "demo",
+        "published_at": "2026-06-27T13:00:00Z",
+        "language": "en",
+        "raw_text": (
+            "Humanitarian actors in the Great Lakes region report displacement near "
+            "the DRC/Burundi border and increased needs for children, women, and health services."
+        ),
+    },
+]
 
 
 @asynccontextmanager
@@ -60,6 +132,17 @@ def root() -> dict[str, str]:
     }
 
 
+@app.get("/health", response_model=HealthResponse)
+def health() -> HealthResponse:
+    ai = AIService()
+    return HealthResponse(
+        status="ok",
+        ai_provider=ai.provider,
+        openai_configured=ai.openai_configured,
+        database="ok" if database_ok() else "error",
+    )
+
+
 @app.post("/ingest/rss", response_model=IngestResult)
 def ingest_rss(request: IngestRequest | None = None) -> IngestResult:
     feeds = request.feeds if request else None
@@ -71,18 +154,21 @@ def ingest_rss(request: IngestRequest | None = None) -> IngestResult:
 
 @app.get(
     "/items",
-    response_model=list[Item],
+    response_model=ItemsResponse,
     summary="List stored intelligence items",
-    description="Returns SQLite-backed items ordered by newest first. Supports keyword search and offset pagination.",
+    description=(
+        "Returns SQLite-backed items ordered by newest first. Supports keyword "
+        "search, category/funding filters, total count, and offset pagination."
+    ),
 )
 def get_items(
     q: str | None = Query(
         default=None,
-        description="Keyword search across title, source, raw text, and summary.",
+        description="Keyword search across title, source, raw text, summary, and action fields.",
     ),
     category: str | None = Query(
         default=None,
-        description="Optional category filter: news, funding, policy, research, other.",
+        description="Optional category filter, such as Funding, Burundi, or Animal Welfare.",
     ),
     funding_only: bool = Query(
         default=False,
@@ -91,7 +177,7 @@ def get_items(
     limit: int = Query(
         default=50,
         ge=1,
-        le=100,
+        le=200,
         description="Maximum number of items to return.",
     ),
     offset: int = Query(
@@ -99,11 +185,17 @@ def get_items(
         ge=0,
         description="Number of matching items to skip before returning results.",
     ),
-) -> list[Item]:
-    return list_items(
+) -> ItemsResponse:
+    items = list_items(
         q=q,
         category=category,
         funding_only=funding_only,
+        limit=limit,
+        offset=offset,
+    )
+    return ItemsResponse(
+        items=items,
+        count=count_items(q=q, category=category, funding_only=funding_only),
         limit=limit,
         offset=offset,
     )
@@ -139,11 +231,11 @@ def get_funding(
 
 @app.get(
     "/digest",
-    response_model=DigestMVPResponse,
-    summary="Get demo digest",
-    description="Returns top analyzed items, funding items, and a deterministic summary that works without AI credentials.",
+    response_model=DigestResponse,
+    summary="Get NGO briefing digest",
+    description="Returns an NGO-ready briefing using OpenAI if configured, otherwise deterministic fallback.",
 )
-def get_digest() -> DigestMVPResponse:
+def get_digest() -> DigestResponse:
     return AnalysisService().digest()
 
 
@@ -151,10 +243,10 @@ def get_digest() -> DigestMVPResponse:
     "/analyze/all",
     response_model=AnalyzeAllResponse,
     summary="Analyze stored items",
-    description="Analyzes stored items using AI if available, otherwise deterministic keyword fallback.",
+    description="Analyzes latest stored items using OpenAI if configured, otherwise deterministic fallback.",
 )
 def analyze_all(
-    limit: int = Query(default=100, ge=1, le=500),
+    limit: int = Query(default=50, ge=1, le=500),
 ) -> AnalyzeAllResponse:
     return AnalysisService().analyze_all(limit=limit)
 
@@ -163,7 +255,10 @@ def analyze_all(
     "/analyze/{item_id}",
     response_model=Item,
     summary="Analyze one item",
-    description="Generates summary, category, relevance score, funding flag, deadline, and target NGO.",
+    description=(
+        "Generates summary, category, 0-100 relevance score, funding flag, "
+        "deadline, target NGO, relevance rationale, and recommended action."
+    ),
 )
 def analyze_item(
     item_id: int = Path(..., ge=1),
@@ -178,7 +273,7 @@ def analyze_item(
     "/translate/{item_id}",
     response_model=Item,
     summary="Translate one item",
-    description="Translates item summary/text into English, French, or German. Uses a demo fallback without AI credentials.",
+    description="Translates item summary/text into English, French, or German.",
 )
 def translate_item(
     request: TranslateRequest,
@@ -188,3 +283,31 @@ def translate_item(
     if item is None:
         raise HTTPException(status_code=404, detail="Item not found")
     return item
+
+
+@app.post("/demo/reset")
+def demo_reset() -> dict[str, Any]:
+    clear_items()
+    created = []
+    for demo_item in DEMO_ITEMS:
+        created.append(create_item(**demo_item))
+    analyzed = AnalysisService().analyze_all(limit=len(DEMO_ITEMS))
+    return {
+        "status": "ok",
+        "created": len(created),
+        "analyzed": analyzed.analyzed,
+        "errors": analyzed.errors,
+    }
+
+
+@app.post("/demo/run")
+def demo_run() -> dict[str, Any]:
+    ingest_result = IngestService().ingest()
+    analyzed = AnalysisService().analyze_all(limit=50)
+    digest = AnalysisService().digest()
+    return {
+        "status": "ok",
+        "ingest": ingest_result.model_dump(),
+        "analysis": analyzed.model_dump(),
+        "digest": digest.model_dump(mode="json"),
+    }

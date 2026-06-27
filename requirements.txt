@@ -5,7 +5,5 @@ pydantic
 python-dotenv
 httpx
 langdetect
-boto3
 openai
 pytest
-hypothesis

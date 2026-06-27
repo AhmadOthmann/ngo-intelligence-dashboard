@@ -12,19 +12,35 @@ export interface BackendItem {
   language: string | null;
   raw_text: string;
   summary: string | null;
-  category: "news" | "funding" | "policy" | "research" | "other" | null;
+  category:
+    | "Burundi"
+    | "Funding"
+    | "Health"
+    | "Education"
+    | "GBV"
+    | "Animal Welfare"
+    | "Humanitarian"
+    | "Politics/Security"
+    | "Development"
+    | "Other"
+    | null;
   relevance_score: number | null;
   is_funding_opportunity: boolean;
   deadline: string | null;
   target_org: string | null;
+  why_relevant: string | null;
+  recommended_action: string | null;
   translated_text: string | null;
   translated_language: string | null;
   created_at: string;
+  updated_at: string | null;
 }
 
 export interface ApiStatus {
   status: string;
   ai_provider: string;
+  openai_configured: boolean;
+  database: string;
 }
 
 export interface IngestResult {
@@ -34,14 +50,26 @@ export interface IngestResult {
 
 export interface DigestResult {
   generated_at: string;
+  headline: string;
+  executive_summary: string;
+  top_priorities: string[];
+  funding_opportunities: string[];
+  recommended_actions: string[];
+  risk_alerts: string[];
   top_items: BackendItem[];
   funding_items: BackendItem[];
-  summary_text: string;
 }
 
 export interface AnalyzeAllResult {
   analyzed: number;
   errors: Array<{ item_id: number; error: string }>;
+}
+
+export interface ItemsResponse {
+  items: BackendItem[];
+  count: number;
+  limit: number;
+  offset: number;
 }
 
 export interface ItemQuery {
@@ -53,14 +81,14 @@ export interface ItemQuery {
 }
 
 export async function getApiStatus(): Promise<ApiStatus> {
-  const response = await fetch(`${API_BASE_URL}/`);
+  const response = await fetch(`${API_BASE_URL}/health`);
   if (!response.ok) {
     throw new Error(`API status could not be loaded (${response.status})`);
   }
   return response.json();
 }
 
-export async function getItems(query: ItemQuery = {}): Promise<BackendItem[]> {
+export async function getItemsPage(query: ItemQuery = {}): Promise<ItemsResponse> {
   const params = new URLSearchParams();
   if (query.q?.trim()) params.set("q", query.q.trim());
   if (query.category?.trim()) params.set("category", query.category.trim());
@@ -74,6 +102,10 @@ export async function getItems(query: ItemQuery = {}): Promise<BackendItem[]> {
     throw new Error(`Items could not be loaded (${response.status})`);
   }
   return response.json();
+}
+
+export async function getItems(query: ItemQuery = {}): Promise<BackendItem[]> {
+  return (await getItemsPage(query)).items;
 }
 
 export async function getFunding(limit = 50, offset = 0): Promise<BackendItem[]> {
@@ -151,11 +183,11 @@ export async function translateItem(id: number, targetLanguage: string): Promise
 export function itemToSignal(item: BackendItem): Signal {
   const type = mapType(item);
   const summary = item.summary || truncate(cleanText(item.raw_text), 280);
-  const relevance = item.relevance_score ?? 0.5;
+  const relevance = item.relevance_score == null ? 50 : item.relevance_score;
 
   return {
     id: `item-${item.id}`,
-    priority: relevance >= 0.75 ? "urgent" : relevance >= 0.4 ? "relevant" : "info",
+    priority: relevance >= 75 ? "urgent" : relevance >= 40 ? "relevant" : "info",
     type,
     title: item.title,
     source: item.source,
@@ -166,21 +198,23 @@ export function itemToSignal(item: BackendItem): Signal {
     aiImportance:
       item.relevance_score == null
         ? undefined
-        : relevance >= 0.85
+        : relevance >= 85
           ? "urgent"
-          : relevance >= 0.65
+          : relevance >= 65
             ? "important"
-            : relevance >= 0.35
+            : relevance >= 35
               ? "medium"
               : "low",
     whyRecommended:
-      item.relevance_score == null
+      item.why_relevant ||
+      (item.relevance_score == null
         ? "Imported from RSS and ready for backend analysis."
-        : `Backend relevance score: ${item.relevance_score.toFixed(2)}.`,
+        : `Backend relevance score: ${item.relevance_score}.`),
     suggestedAction:
-      type === "funding"
+      item.recommended_action ||
+      (type === "funding"
         ? "Review eligibility and deadline details from the source."
-        : "Review the source and save it if it matters to your NGO.",
+        : "Review the source and save it if it matters to your NGO."),
     funding:
       type === "funding"
         ? {
@@ -196,8 +230,8 @@ export function itemToSignal(item: BackendItem): Signal {
 }
 
 function mapType(item: BackendItem): SignalType {
-  if (item.is_funding_opportunity || item.category === "funding") return "funding";
-  if (item.category === "research") return "report";
+  if (item.is_funding_opportunity || item.category === "Funding") return "funding";
+  if (item.category === "Development") return "report";
   return "news";
 }
 
