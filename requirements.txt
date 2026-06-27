@@ -2,6 +2,7 @@ fastapi
 uvicorn
 feedparser
 pydantic
+python-dotenv
 httpx
 langdetect
 boto3

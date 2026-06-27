@@ -16,8 +16,15 @@ export interface BackendItem {
   relevance_score: number | null;
   is_funding_opportunity: boolean;
   deadline: string | null;
+  target_org: string | null;
   translated_text: string | null;
+  translated_language: string | null;
   created_at: string;
+}
+
+export interface ApiStatus {
+  status: string;
+  ai_provider: string;
 }
 
 export interface IngestResult {
@@ -25,15 +32,39 @@ export interface IngestResult {
   errors: Array<{ feed_url: string; error: string }>;
 }
 
+export interface DigestResult {
+  generated_at: string;
+  top_items: BackendItem[];
+  funding_items: BackendItem[];
+  summary_text: string;
+}
+
+export interface AnalyzeAllResult {
+  analyzed: number;
+  errors: Array<{ item_id: number; error: string }>;
+}
+
 export interface ItemQuery {
   q?: string;
+  category?: string;
+  fundingOnly?: boolean;
   limit?: number;
   offset?: number;
+}
+
+export async function getApiStatus(): Promise<ApiStatus> {
+  const response = await fetch(`${API_BASE_URL}/`);
+  if (!response.ok) {
+    throw new Error(`API status could not be loaded (${response.status})`);
+  }
+  return response.json();
 }
 
 export async function getItems(query: ItemQuery = {}): Promise<BackendItem[]> {
   const params = new URLSearchParams();
   if (query.q?.trim()) params.set("q", query.q.trim());
+  if (query.category?.trim()) params.set("category", query.category.trim());
+  if (query.fundingOnly) params.set("funding_only", "true");
   if (query.limit != null) params.set("limit", String(query.limit));
   if (query.offset != null) params.set("offset", String(query.offset));
 
@@ -41,6 +72,26 @@ export async function getItems(query: ItemQuery = {}): Promise<BackendItem[]> {
   const response = await fetch(`${API_BASE_URL}/items${queryString ? `?${queryString}` : ""}`);
   if (!response.ok) {
     throw new Error(`Items could not be loaded (${response.status})`);
+  }
+  return response.json();
+}
+
+export async function getFunding(limit = 50, offset = 0): Promise<BackendItem[]> {
+  const params = new URLSearchParams({
+    limit: String(limit),
+    offset: String(offset),
+  });
+  const response = await fetch(`${API_BASE_URL}/funding?${params}`);
+  if (!response.ok) {
+    throw new Error(`Funding items could not be loaded (${response.status})`);
+  }
+  return response.json();
+}
+
+export async function getDigest(): Promise<DigestResult> {
+  const response = await fetch(`${API_BASE_URL}/digest`);
+  if (!response.ok) {
+    throw new Error(`Digest could not be loaded (${response.status})`);
   }
   return response.json();
 }
@@ -61,6 +112,38 @@ export async function ingestRss(feeds?: string[]): Promise<IngestResult> {
   });
   if (!response.ok) {
     throw new Error(`RSS ingestion failed (${response.status})`);
+  }
+  return response.json();
+}
+
+export async function analyzeItem(id: number): Promise<BackendItem> {
+  const response = await fetch(`${API_BASE_URL}/analyze/${id}`, {
+    method: "POST",
+  });
+  if (!response.ok) {
+    throw new Error(`Item analysis failed (${response.status})`);
+  }
+  return response.json();
+}
+
+export async function analyzeAll(limit = 100): Promise<AnalyzeAllResult> {
+  const response = await fetch(`${API_BASE_URL}/analyze/all?limit=${limit}`, {
+    method: "POST",
+  });
+  if (!response.ok) {
+    throw new Error(`Bulk analysis failed (${response.status})`);
+  }
+  return response.json();
+}
+
+export async function translateItem(id: number, targetLanguage: string): Promise<BackendItem> {
+  const response = await fetch(`${API_BASE_URL}/translate/${id}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ target_language: targetLanguage }),
+  });
+  if (!response.ok) {
+    throw new Error(`Translation failed (${response.status})`);
   }
   return response.json();
 }

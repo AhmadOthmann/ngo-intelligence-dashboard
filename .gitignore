@@ -1,3 +1,7 @@
 
 node_modules/
 frontend/node_modules/
+.env
+items.db
+__pycache__/
+*.pyc

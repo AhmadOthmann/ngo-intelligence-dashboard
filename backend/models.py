@@ -5,7 +5,15 @@ from pydantic import BaseModel, Field, field_validator
 
 
 VALID_CATEGORIES = {"news", "funding", "policy", "research", "other"}
-VALID_TARGET_LANGUAGES = {"en", "fr", "de"}
+VALID_TARGET_LANGUAGES = {"en", "fr", "de", "english", "french", "german"}
+LANGUAGE_LABELS = {
+    "en": "English",
+    "english": "English",
+    "fr": "French",
+    "french": "French",
+    "de": "German",
+    "german": "German",
+}
 
 
 class Item(BaseModel):
@@ -21,7 +29,9 @@ class Item(BaseModel):
     relevance_score: Optional[float] = None
     is_funding_opportunity: bool = False
     deadline: Optional[str] = None
+    target_org: Optional[str] = None
     translated_text: Optional[str] = None
+    translated_language: Optional[str] = None
     created_at: datetime
 
     @field_validator("category")
@@ -56,12 +66,25 @@ class TranslateRequest(BaseModel):
     @field_validator("target_language")
     @classmethod
     def validate_target_language(cls, value: str) -> str:
-        if value not in VALID_TARGET_LANGUAGES:
-            raise ValueError("target_language must be one of: en, fr, de")
-        return value
+        normalized = value.strip().lower()
+        if normalized not in VALID_TARGET_LANGUAGES:
+            raise ValueError("target_language must be one of: English, French, German")
+        return LANGUAGE_LABELS[normalized]
 
 
 class DigestResponse(BaseModel):
     briefing_date: str
     summary: str = Field(max_length=500)
     items: list[Item] = Field(max_length=20)
+
+
+class DigestMVPResponse(BaseModel):
+    generated_at: str
+    top_items: list[Item]
+    funding_items: list[Item]
+    summary_text: str
+
+
+class AnalyzeAllResponse(BaseModel):
+    analyzed: int
+    errors: list[dict[str, Any]]

@@ -8,6 +8,18 @@ from .models import Item, VALID_CATEGORIES
 
 
 DATABASE_PATH = Path(os.environ.get("DATABASE_PATH", "items.db"))
+FUNDING_KEYWORDS = [
+    "funding",
+    "grant",
+    "proposal",
+    "call for proposals",
+    "deadline",
+    "application",
+    "bmz",
+    "stiftung",
+    "ngo",
+    "project funding",
+]
 
 
 def utc_now() -> str:
@@ -40,11 +52,15 @@ def init_db(db_path: Path | str = DATABASE_PATH) -> None:
                     relevance_score REAL CHECK(relevance_score IS NULL OR (relevance_score >= 0.0 AND relevance_score <= 1.0)),
                     is_funding_opportunity BOOLEAN DEFAULT 0,
                     deadline TEXT,
+                    target_org TEXT,
                     translated_text TEXT,
+                    translated_language TEXT,
                     created_at TIMESTAMP DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
                 )
                 """
             )
+            _ensure_column(connection, "target_org", "TEXT")
+            _ensure_column(connection, "translated_language", "TEXT")
             connection.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_items_url ON items(url)")
             connection.execute(
                 "CREATE INDEX IF NOT EXISTS idx_items_relevance ON items(relevance_score DESC)"
@@ -60,6 +76,15 @@ def init_db(db_path: Path | str = DATABASE_PATH) -> None:
             connection.execute("CREATE INDEX IF NOT EXISTS idx_items_created ON items(created_at DESC)")
     finally:
         connection.close()
+
+
+def _ensure_column(connection: sqlite3.Connection, column: str, definition: str) -> None:
+    columns = {
+        row["name"]
+        for row in connection.execute("PRAGMA table_info(items)").fetchall()
+    }
+    if column not in columns:
+        connection.execute(f"ALTER TABLE items ADD COLUMN {column} {definition}")
 
 
 def row_to_item(row: sqlite3.Row) -> Item:
@@ -111,21 +136,36 @@ def get_item(item_id: int, db_path: Path | str = DATABASE_PATH) -> Optional[Item
 def list_items(
     *,
     q: Optional[str] = None,
+    category: Optional[str] = None,
+    funding_only: bool = False,
     limit: int = 50,
     offset: int = 0,
     db_path: Path | str = DATABASE_PATH,
 ) -> list[Item]:
-    where_clause = ""
+    clauses: list[str] = []
     parameters: list[Any] = []
     if q:
-        where_clause = """
-            WHERE title LIKE ?
-               OR source LIKE ?
-               OR raw_text LIKE ?
-               OR summary LIKE ?
-        """
+        clauses.append(
+            """
+            (
+                title LIKE ?
+                OR source LIKE ?
+                OR raw_text LIKE ?
+                OR summary LIKE ?
+            )
+            """
+        )
         keyword = f"%{q}%"
         parameters.extend([keyword, keyword, keyword, keyword])
+    if category:
+        clauses.append("lower(category) = lower(?)")
+        parameters.append(category)
+    if funding_only:
+        funding_clauses, funding_parameters = _funding_conditions()
+        clauses.append(f"({funding_clauses})")
+        parameters.extend(funding_parameters)
+
+    where_clause = f"WHERE {' AND '.join(clauses)}" if clauses else ""
     parameters.extend([limit, offset])
 
     connection = get_connection(db_path)
@@ -145,6 +185,44 @@ def list_items(
     return [row_to_item(row) for row in rows]
 
 
+def list_funding_items(
+    *,
+    limit: int = 50,
+    offset: int = 0,
+    db_path: Path | str = DATABASE_PATH,
+) -> list[Item]:
+    funding_clauses, parameters = _funding_conditions()
+    parameters.extend([limit, offset])
+    connection = get_connection(db_path)
+    try:
+        rows = connection.execute(
+            f"""
+            SELECT *
+            FROM items
+            WHERE {funding_clauses}
+            ORDER BY
+                CASE WHEN deadline IS NULL THEN 1 ELSE 0 END,
+                deadline ASC,
+                created_at DESC
+            LIMIT ? OFFSET ?
+            """,
+            parameters,
+        ).fetchall()
+    finally:
+        connection.close()
+    return [row_to_item(row) for row in rows]
+
+
+def _funding_conditions() -> tuple[str, list[Any]]:
+    conditions = ["is_funding_opportunity = 1"]
+    parameters: list[Any] = []
+    for keyword in FUNDING_KEYWORDS:
+        pattern = f"%{keyword.lower()}%"
+        conditions.append("(lower(title) LIKE ? OR lower(raw_text) LIKE ?)")
+        parameters.extend([pattern, pattern])
+    return " OR ".join(conditions), parameters
+
+
 def update_item_fields(
     item_id: int,
     fields: dict[str, Any],
@@ -159,7 +237,9 @@ def update_item_fields(
         "relevance_score",
         "is_funding_opportunity",
         "deadline",
+        "target_org",
         "translated_text",
+        "translated_language",
     }
     unknown_fields = set(fields) - allowed_fields
     if unknown_fields:

@@ -18,6 +18,7 @@ import { Route as AppIndexRouteImport } from './routes/app.index'
 import { Route as AppSavedRouteImport } from './routes/app.saved'
 import { Route as AppProfileRouteImport } from './routes/app.profile'
 import { Route as AppInboxRouteImport } from './routes/app.inbox'
+import { Route as AppDashboardRouteImport } from './routes/app.dashboard'
 import { Route as AppChatRouteImport } from './routes/app.chat'
 
 const SignupRoute = SignupRouteImport.update({
@@ -65,6 +66,11 @@ const AppInboxRoute = AppInboxRouteImport.update({
   path: '/inbox',
   getParentRoute: () => AppRoute,
 } as any)
+const AppDashboardRoute = AppDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppChatRoute = AppChatRouteImport.update({
   id: '/chat',
   path: '/chat',
@@ -78,6 +84,7 @@ export interface FileRoutesByFullPath {
   '/onboarding': typeof OnboardingRoute
   '/signup': typeof SignupRoute
   '/app/chat': typeof AppChatRoute
+  '/app/dashboard': typeof AppDashboardRoute
   '/app/inbox': typeof AppInboxRoute
   '/app/profile': typeof AppProfileRoute
   '/app/saved': typeof AppSavedRoute
@@ -89,6 +96,7 @@ export interface FileRoutesByTo {
   '/onboarding': typeof OnboardingRoute
   '/signup': typeof SignupRoute
   '/app/chat': typeof AppChatRoute
+  '/app/dashboard': typeof AppDashboardRoute
   '/app/inbox': typeof AppInboxRoute
   '/app/profile': typeof AppProfileRoute
   '/app/saved': typeof AppSavedRoute
@@ -102,6 +110,7 @@ export interface FileRoutesById {
   '/onboarding': typeof OnboardingRoute
   '/signup': typeof SignupRoute
   '/app/chat': typeof AppChatRoute
+  '/app/dashboard': typeof AppDashboardRoute
   '/app/inbox': typeof AppInboxRoute
   '/app/profile': typeof AppProfileRoute
   '/app/saved': typeof AppSavedRoute
@@ -116,6 +125,7 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/signup'
     | '/app/chat'
+    | '/app/dashboard'
     | '/app/inbox'
     | '/app/profile'
     | '/app/saved'
@@ -127,6 +137,7 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/signup'
     | '/app/chat'
+    | '/app/dashboard'
     | '/app/inbox'
     | '/app/profile'
     | '/app/saved'
@@ -139,6 +150,7 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/signup'
     | '/app/chat'
+    | '/app/dashboard'
     | '/app/inbox'
     | '/app/profile'
     | '/app/saved'
@@ -218,6 +230,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppInboxRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/dashboard': {
+      id: '/app/dashboard'
+      path: '/dashboard'
+      fullPath: '/app/dashboard'
+      preLoaderRoute: typeof AppDashboardRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/chat': {
       id: '/app/chat'
       path: '/chat'
@@ -230,6 +249,7 @@ declare module '@tanstack/react-router' {
 
 interface AppRouteChildren {
   AppChatRoute: typeof AppChatRoute
+  AppDashboardRoute: typeof AppDashboardRoute
   AppInboxRoute: typeof AppInboxRoute
   AppProfileRoute: typeof AppProfileRoute
   AppSavedRoute: typeof AppSavedRoute
@@ -238,6 +258,7 @@ interface AppRouteChildren {
 
 const AppRouteChildren: AppRouteChildren = {
   AppChatRoute: AppChatRoute,
+  AppDashboardRoute: AppDashboardRoute,
   AppInboxRoute: AppInboxRoute,
   AppProfileRoute: AppProfileRoute,
   AppSavedRoute: AppSavedRoute,

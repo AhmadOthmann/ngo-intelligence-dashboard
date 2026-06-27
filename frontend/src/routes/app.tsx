@@ -1,6 +1,6 @@
 import { Link, Outlet, createFileRoute, useRouterState } from "@tanstack/react-router";
 import { useEffect } from "react";
-import { Bookmark, Inbox, MessageCircle, Radio, User } from "lucide-react";
+import { Bookmark, Inbox, LayoutDashboard, MessageCircle, Radio, User } from "lucide-react";
 import { useAppState } from "@/lib/app-state";
 
 export const Route = createFileRoute("/app")({
@@ -8,6 +8,7 @@ export const Route = createFileRoute("/app")({
 });
 
 const NAV = [
+  { to: "/app/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/app/inbox", label: "Signal Inbox", icon: Inbox },
   { to: "/app/saved", label: "Saved Signals", icon: Bookmark },
   { to: "/app/chat", label: "Peer Chat", icon: MessageCircle },
@@ -27,7 +28,7 @@ function AppLayout() {
   return (
     <div className="flex min-h-screen bg-background">
       <aside className="hidden w-64 shrink-0 flex-col bg-primary text-primary-foreground md:flex">
-        <Link to="/app/inbox" className="flex items-center gap-2.5 px-5 py-5">
+        <Link to="/app/dashboard" className="flex items-center gap-2.5 px-5 py-5">
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/15">
             <Radio className="h-5 w-5" />
           </div>
