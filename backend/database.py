@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
-from models import Item, VALID_CATEGORIES
+from .models import Item, VALID_CATEGORIES
 
 
 DATABASE_PATH = Path(os.environ.get("DATABASE_PATH", "items.db"))

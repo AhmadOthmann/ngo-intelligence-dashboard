@@ -1,10 +1,12 @@
 import os
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
-from database import init_db
+from .database import init_db
+from .ingest_service import IngestService
+from .models import IngestRequest, IngestResult
 
 
 @asynccontextmanager
@@ -36,3 +38,12 @@ app.add_middleware(
 @app.get("/")
 def root() -> dict[str, str]:
     return {"status": "ok"}
+
+
+@app.post("/ingest/rss", response_model=IngestResult)
+def ingest_rss(request: IngestRequest | None = None) -> IngestResult:
+    feeds = request.feeds if request else None
+    if feeds is not None and len(feeds) > 20:
+        raise HTTPException(status_code=400, detail="Maximum number of feeds is 20")
+
+    return IngestService().ingest(feeds)

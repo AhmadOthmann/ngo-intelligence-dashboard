@@ -42,7 +42,7 @@ class Item(BaseModel):
 
 
 class IngestRequest(BaseModel):
-    feeds: Optional[list[str]] = Field(default=None, max_length=20)
+    feeds: Optional[list[str]] = None
 
 
 class IngestResult(BaseModel):

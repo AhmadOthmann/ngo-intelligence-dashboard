@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+feedparser
+pydantic
+httpx
+langdetect
+boto3
+openai
+pytest
+hypothesis
