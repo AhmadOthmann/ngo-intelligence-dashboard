@@ -1,6 +1,6 @@
-import { Link, Outlet, createFileRoute, useRouterState } from "@tanstack/react-router";
+import { Link, Outlet, createFileRoute, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useEffect } from "react";
-import { Bookmark, Inbox, LayoutDashboard, Radio } from "lucide-react";
+import { Inbox, MessageCircle, Radio, Tag, User } from "lucide-react";
 import { useAppState } from "@/lib/app-state";
 
 export const Route = createFileRoute("/app")({
@@ -8,25 +8,29 @@ export const Route = createFileRoute("/app")({
 });
 
 const NAV = [
-  { to: "/app/dashboard", label: "Intelligence", icon: LayoutDashboard },
-  { to: "/app/inbox", label: "Inbox", icon: Inbox },
-  { to: "/app/saved", label: "Saved Signals", icon: Bookmark },
+  { to: "/app/inbox", label: "Signal Inbox", icon: Inbox },
+  { to: "/app/saved", label: "Tags", icon: Tag },
+  { to: "/app/chat", label: "Peer Chat", icon: MessageCircle },
+  { to: "/app/profile", label: "Profile", icon: User },
 ] as const;
 
 function AppLayout() {
-  const { profile, loginAsDemo } = useAppState();
+  const { profile } = useAppState();
+  const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
   useEffect(() => {
     if (!profile) {
-      loginAsDemo();
+      void navigate({ to: "/signup", replace: true });
     }
-  }, [profile, loginAsDemo]);
+  }, [profile, navigate]);
+
+  if (!profile) return null;
 
   return (
     <div className="flex min-h-screen bg-background">
       <aside className="hidden w-64 shrink-0 flex-col bg-primary text-primary-foreground md:flex">
-        <Link to="/app/dashboard" className="flex items-center gap-2.5 px-5 py-5">
+        <Link to="/app/inbox" className="flex items-center gap-2.5 px-5 py-5">
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/15">
             <Radio className="h-5 w-5" />
           </div>

@@ -42,6 +42,8 @@ export interface Signal {
   peerActivity?: PeerActivity[];
   suggestedAction: string;
   funding?: FundingDetails;
+  translatedText?: string;
+  translatedLanguage?: string;
   url?: string;
 }
 

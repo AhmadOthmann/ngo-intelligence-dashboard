@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { formatChatTime } from "@/lib/utils";
 
 export const Route = createFileRoute("/app/chat")({
-  head: () => ({ meta: [{ title: "Peer Chat — FieldSignal AI" }] }),
+  head: () => ({ meta: [{ title: "Peer Chat - FieldSignal AI" }] }),
   component: ChatPage,
 });
 
@@ -25,25 +25,25 @@ function ChatPage() {
         <div className="mb-5">
           <h1 className="text-2xl font-semibold tracking-tight text-foreground">Peer Chat</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Conversations with peer NGOs — auto-translated for you.
+            Conversations with peer NGOs, translated between your language and theirs.
           </p>
         </div>
         <div className="overflow-hidden rounded-2xl border border-border bg-card">
-          {conversations.map((c) => {
-            const last = c.messages[c.messages.length - 1];
+          {conversations.map((conversation) => {
+            const last = conversation.messages[conversation.messages.length - 1];
             return (
               <button
-                key={c.id}
-                onClick={() => setActiveId(c.id)}
+                key={conversation.id}
+                onClick={() => setActiveId(conversation.id)}
                 className="flex w-full items-start gap-3 border-b border-border px-4 py-4 text-left transition last:border-b-0 hover:bg-secondary/50"
               >
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
-                  {c.orgName.slice(0, 2).toUpperCase()}
+                  {conversation.orgName.slice(0, 2).toUpperCase()}
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between gap-2">
                     <div className="truncate text-sm font-semibold text-foreground">
-                      {c.orgName}
+                      {conversation.orgName}
                     </div>
                     {last && (
                       <span className="text-[10px] text-muted-foreground">
@@ -52,11 +52,11 @@ function ChatPage() {
                     )}
                   </div>
                   <div className="mt-0.5 text-[11px] text-muted-foreground">
-                    {c.country} · {c.sharedTopics.slice(0, 2).join(", ")}
+                    {conversation.country} / {conversation.sharedTopics.slice(0, 2).join(", ")}
                   </div>
                   {last && (
                     <div className="mt-1 line-clamp-1 text-xs text-foreground/70">
-                      {last.translatedText}
+                      {last.sender === "me" ? last.originalText : last.translatedText}
                     </div>
                   )}
                 </div>
@@ -82,7 +82,7 @@ function ChatPage() {
           <div>
             <div className="text-sm font-semibold text-foreground">{active.orgName}</div>
             <div className="text-xs text-muted-foreground">
-              {active.country} · {active.sharedTopics.join(", ")}
+              {active.country} / {active.sharedTopics.join(", ")}
             </div>
           </div>
           <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
@@ -93,14 +93,32 @@ function ChatPage() {
         <div className="flex-1 space-y-4 overflow-auto px-4 py-5 md:px-5">
           {active.messages.length === 0 && (
             <div className="rounded-xl border border-dashed border-border bg-secondary/40 p-6 text-center text-sm text-muted-foreground">
-              No messages yet. Start the conversation — FieldSignal will auto-translate.
+              No messages yet. Start the conversation and FieldSignal will translate it.
             </div>
           )}
-          {active.messages.map((m) => {
-            const mine = m.sender === "me";
-            const showOrig = !!showOriginal[m.id];
+          {active.messages.map((message) => {
+            const mine = message.sender === "me";
+            const toggled = !!showOriginal[message.id];
+            const visibleText = mine
+              ? toggled
+                ? message.translatedText
+                : message.originalText
+              : toggled
+                ? message.originalText
+                : message.translatedText;
+            const translationLabel = mine
+              ? `Sent in ${message.originalLang} / translated to ${message.targetLang}`
+              : `Auto-translated ${message.originalLang} -> ${message.targetLang}`;
+            const toggleLabel = mine
+              ? toggled
+                ? "Show my message"
+                : "Show recipient translation"
+              : toggled
+                ? "Show translation"
+                : "Show original";
+
             return (
-              <div key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
+              <div key={message.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
                 <div
                   className={`max-w-[78%] rounded-2xl px-4 py-3 ${
                     mine
@@ -110,33 +128,35 @@ function ChatPage() {
                 >
                   <div className="mb-1 flex items-center justify-between gap-3 text-[10px] opacity-80">
                     <span>{mine ? profile?.name ?? "You" : active.orgName}</span>
-                    <span>{formatChatTime(m.sentAt) || m.timestamp}</span>
+                    <span>{formatChatTime(message.sentAt) || message.timestamp}</span>
                   </div>
-                  <div className="text-sm leading-relaxed">
-                    {showOrig ? m.originalText : m.translatedText}
-                  </div>
+                  <div className="text-sm leading-relaxed">{visibleText}</div>
                   <div className="mt-2 flex items-center justify-between gap-2 text-[10px] opacity-80">
                     <span className="inline-flex items-center gap-1">
-                      <Languages className="h-3 w-3" /> Auto-translated · {m.originalLang} → {m.targetLang}
+                      <Languages className="h-3 w-3" /> {translationLabel}
                     </span>
                     <button
                       className="underline-offset-2 hover:underline"
-                      onClick={() => setShowOriginal((p) => ({ ...p, [m.id]: !p[m.id] }))}
+                      onClick={() =>
+                        setShowOriginal((current) => ({
+                          ...current,
+                          [message.id]: !current[message.id],
+                        }))
+                      }
                     >
-                      {showOrig ? "Show translation" : "Show original"}
+                      {toggleLabel}
                     </button>
                   </div>
                 </div>
               </div>
             );
           })}
-
         </div>
 
         <footer className="border-t border-border bg-card p-4">
           <textarea
             value={draft}
-            onChange={(e) => setDraft(e.target.value)}
+            onChange={(event) => setDraft(event.target.value)}
             placeholder="Write in your language. FieldSignal will translate it for the recipient."
             rows={2}
             className="w-full resize-none rounded-xl border border-border bg-background p-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
@@ -155,7 +175,11 @@ function ChatPage() {
             <Button
               size="sm"
               variant="outline"
-              onClick={() => setDraft("Hallo, vielen Dank für eure Notizen. Habt ihr Erfahrungen mit deutschen Antragstellern?")}
+              onClick={() =>
+                setDraft(
+                  "Hallo, vielen Dank fuer eure Notizen. Habt ihr Erfahrungen mit deutschen Antragstellern?",
+                )
+              }
             >
               <Sparkles className="h-4 w-4" /> AI draft reply
             </Button>
@@ -164,10 +188,10 @@ function ChatPage() {
               variant="ghost"
               onClick={() => {
                 saveInsight("Saved insight from conversation with " + active.orgName);
-                toast.success("Saved to Saved Signals");
+                toast.success("Saved to Tags");
               }}
             >
-              <Bookmark className="h-4 w-4" /> Save insight to Saved Signals
+              <Bookmark className="h-4 w-4" /> Save insight to Tags
             </Button>
           </div>
         </footer>

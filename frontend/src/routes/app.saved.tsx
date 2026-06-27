@@ -19,7 +19,7 @@ import { toast } from "sonner";
 import { BURUNDI_KIDS } from "@/lib/demo-data";
 
 export const Route = createFileRoute("/app/saved")({
-  head: () => ({ meta: [{ title: "Saved Signals — FieldSignal AI" }] }),
+  head: () => ({ meta: [{ title: "Tags - FieldSignal AI" }] }),
   component: SavedPage,
 });
 
@@ -74,16 +74,16 @@ function SavedPage() {
   return (
     <div className="mx-auto max-w-5xl space-y-6 px-5 py-8">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Saved Signals</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Tags</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Your NGO's knowledge base — funding, news, reports and peer notes.
+          Your NGO's organized knowledge base for funding, news, reports, and peer notes.
         </p>
       </div>
 
       <div className="space-y-3">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search saved items…" className="pl-9" />
+          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search tagged items" className="pl-9" />
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <label className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -115,7 +115,7 @@ function SavedPage() {
 
       {filtered.length === 0 && (
         <div className="rounded-2xl border border-dashed border-border bg-card p-10 text-center text-sm text-muted-foreground">
-          No saved signals yet. Save signals from your Inbox to build your knowledge base.
+          No tagged signals yet. Save signals from your Inbox to build your knowledge base.
         </div>
       )}
 

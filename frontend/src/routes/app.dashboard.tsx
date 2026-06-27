@@ -7,10 +7,9 @@ import {
   Languages,
   Loader2,
   RefreshCw,
-  Rss,
   Search,
-  Server,
   Wand2,
+  type LucideIcon,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -70,12 +69,9 @@ const LANGUAGE_OPTIONS = ["German", "French", "English"] as const;
 type CategoryFilter = (typeof CATEGORY_OPTIONS)[number]["value"];
 type ActionState =
   | "refresh"
-  | "ingest"
-  | "scrape"
-  | "analyze-all"
+  | "update"
   | "analyze-item"
   | "translate"
-  | "digest"
   | null;
 
 function DashboardPage() {
@@ -139,71 +135,26 @@ function DashboardPage() {
     void loadDashboard({ q: "", category: "all", fundingOnly: false });
   }, []);
 
-  async function handleIngest() {
+  async function handleUpdateIntelligence() {
     setNotice(null);
     setError(null);
-    setAction("ingest");
+    setAction("update");
     try {
-      const result = await ingestRss();
+      const feedResult = await ingestRss();
+      const webResult = await scrapeWeb();
+      const analysisResult = await analyzeAll(PAGE_LIMIT);
+      const issueCount =
+        feedResult.errors.length + webResult.errors.length + analysisResult.errors.length;
       setNotice(
-        `Updated news feeds: ${result.ingested} new signal${result.ingested === 1 ? "" : "s"}${
-          result.errors.length ? `, ${result.errors.length} source issue(s)` : ""
+        `Updated intelligence: ${feedResult.ingested + webResult.scraped} new signal${
+          feedResult.ingested + webResult.scraped === 1 ? "" : "s"
+        }, ${analysisResult.analyzed} prioritized${
+          issueCount ? `, ${issueCount} source issue(s)` : ""
         }.`,
       );
       await loadDashboard(undefined, "refresh");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not update news feeds");
-      setAction(null);
-    }
-  }
-
-  async function handleScrapeWeb() {
-    setNotice(null);
-    setError(null);
-    setAction("scrape");
-    try {
-      const result = await scrapeWeb();
-      setNotice(
-        `Web search saved ${result.scraped} source page${result.scraped === 1 ? "" : "s"}${
-          result.skipped ? ` and skipped ${result.skipped}` : ""
-        }${result.errors.length ? `, ${result.errors.length} source issue(s)` : ""}.`,
-      );
-      await loadDashboard(undefined, "refresh");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not search web sources");
-      setAction(null);
-    }
-  }
-
-  async function handleAnalyzeAll() {
-    setNotice(null);
-    setError(null);
-    setAction("analyze-all");
-    try {
-      const result = await analyzeAll(PAGE_LIMIT);
-      setNotice(
-        `Prioritized ${result.analyzed} signal${result.analyzed === 1 ? "" : "s"}${
-          result.errors.length ? `, ${result.errors.length} issue(s)` : ""
-        }.`,
-      );
-      await loadDashboard(undefined, "refresh");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not prioritize signals");
-      setAction(null);
-    }
-  }
-
-  async function handleGenerateDigest() {
-    setNotice(null);
-    setError(null);
-    setAction("digest");
-    try {
-      const nextDigest = await getDigest();
-      setDigest(nextDigest);
-      setNotice("Briefing updated.");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not create briefing");
-    } finally {
+      setError(err instanceof Error ? err.message : "Could not update intelligence");
       setAction(null);
     }
   }
@@ -265,7 +216,6 @@ function DashboardPage() {
 
   const isBusy = action !== null;
   const highRelevanceCount = items.filter((item) => (item.relevance_score ?? 0) >= 75).length;
-  const translatedCount = items.filter((item) => item.translated_text).length;
 
   return (
     <div className="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6 lg:px-8">
@@ -279,41 +229,26 @@ function DashboardPage() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <Button onClick={() => void handleUpdateIntelligence()} disabled={isBusy}>
+            {action === "update" ? <Loader2 className="animate-spin" /> : <Wand2 />}
+            Update Intelligence
+          </Button>
           <Button
             variant="outline"
+            size="icon"
+            title="Refresh"
             onClick={() => void loadDashboard()}
             disabled={isBusy}
           >
             {action === "refresh" ? <Loader2 className="animate-spin" /> : <RefreshCw />}
-            Refresh
-          </Button>
-          <Button variant="outline" onClick={() => void handleIngest()} disabled={isBusy}>
-            {action === "ingest" ? <Loader2 className="animate-spin" /> : <Rss />}
-            Update Feeds
-          </Button>
-          <Button variant="outline" onClick={() => void handleScrapeWeb()} disabled={isBusy}>
-            {action === "scrape" ? <Loader2 className="animate-spin" /> : <Search />}
-            Search Web
-          </Button>
-          <Button onClick={() => void handleAnalyzeAll()} disabled={isBusy}>
-            {action === "analyze-all" ? <Loader2 className="animate-spin" /> : <Wand2 />}
-            Prioritize
-          </Button>
-          <Button variant="outline" onClick={() => void handleGenerateDigest()} disabled={isBusy}>
-            {action === "digest" ? <Loader2 className="animate-spin" /> : <Database />}
-            Create Briefing
           </Button>
         </div>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Metric
-          icon={Server}
-          label="Monitoring"
-          value={status?.status === "ok" && status.database === "ok" ? "Ready" : "Offline"}
-        />
         <Metric icon={Database} label="Signals" value={String(totalItems)} />
         <Metric icon={BadgeDollarSign} label="Funding leads" value={String(fundingItems.length)} />
+        <Metric icon={Wand2} label="Priority signals" value={String(highRelevanceCount)} />
         <Metric
           icon={Wand2}
           label="Analysis"
@@ -325,13 +260,6 @@ function DashboardPage() {
               : "Unknown"
           }
         />
-      </div>
-
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Metric icon={Wand2} label="Priority signals" value={String(highRelevanceCount)} />
-        <Metric icon={Languages} label="Translated" value={String(translatedCount)} />
-        <Metric icon={BadgeDollarSign} label="Funding filter" value={fundingOnly ? "On" : "Off"} />
-        <Metric icon={Search} label="Visible now" value={String(items.length)} />
       </div>
 
       {(notice || error) && (
@@ -404,13 +332,12 @@ function DashboardPage() {
                   <TableHead className="hidden w-32 md:table-cell">Category</TableHead>
                   <TableHead className="hidden w-24 md:table-cell">Score</TableHead>
                   <TableHead className="hidden min-w-[180px] lg:table-cell">Recommended Action</TableHead>
-                  <TableHead className="w-28">Source</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {items.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+                    <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
                       No signals found.
                     </TableCell>
                   </TableRow>
@@ -446,9 +373,6 @@ function DashboardPage() {
                           {item.recommended_action ?? "Prioritize to generate next step."}
                         </span>
                       </TableCell>
-                      <TableCell className="max-w-[130px] truncate text-xs text-muted-foreground">
-                        {item.source}
-                      </TableCell>
                     </TableRow>
                   ))
                 )}
@@ -482,7 +406,7 @@ function DashboardPage() {
                         {item.title}
                       </span>
                       <span className="mt-1 block text-xs text-muted-foreground">
-                        {item.deadline ? `Deadline ${formatDate(item.deadline)}` : item.source}
+                        {item.deadline ? `Deadline ${formatDate(item.deadline)}` : categoryLabel(item.category)}
                       </span>
                     </span>
                     <Badge variant="outline">{formatScore(item.relevance_score)}</Badge>
@@ -536,7 +460,7 @@ function DashboardPage() {
               <div className="min-w-0">
                 <h2 className="text-sm font-semibold text-foreground">Signal Detail</h2>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  {selectedItem ? `Source: ${selectedItem.source}` : "No signal selected"}
+                  {selectedItem ? "Review summary, relevance, and next step." : "No signal selected"}
                 </p>
               </div>
               {selectedItem?.url && (
@@ -665,7 +589,7 @@ function Metric({
   label,
   value,
 }: {
-  icon: typeof Server;
+  icon: LucideIcon;
   label: string;
   value: string;
 }) {

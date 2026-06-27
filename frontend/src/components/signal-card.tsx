@@ -4,6 +4,8 @@ import {
   ChevronDown,
   ChevronUp,
   ExternalLink,
+  Languages,
+  Loader2,
   Users,
   X,
 } from "lucide-react";
@@ -18,6 +20,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useAppState } from "@/lib/app-state";
+import { itemToSignal, translateItem } from "@/lib/api";
+import { translateMessage } from "@/lib/ai-mock";
 import type { Signal } from "@/lib/types";
 import { toast } from "sonner";
 
@@ -27,13 +31,43 @@ const canApplyTone: Record<string, string> = {
   no: "bg-rose-50 text-rose-700",
 };
 
+const LANGUAGE_OPTIONS = ["German", "French", "English"] as const;
 type Importance = "high" | "medium" | "low";
 
 export function SignalCard({ signal }: { signal: Signal }) {
-  const { saveSignal, ignoreSignal } = useAppState();
+  const { saveSignal, ignoreSignal, profile } = useAppState();
   const [expanded, setExpanded] = useState(false);
   const [saveOpen, setSaveOpen] = useState(false);
   const [importance, setImportance] = useState<Importance>("medium");
+  const [targetLanguage, setTargetLanguage] = useState(
+    normalizeTargetLanguage(profile?.language),
+  );
+  const [translatedText, setTranslatedText] = useState(signal.translatedText ?? "");
+  const [translatedLanguage, setTranslatedLanguage] = useState(
+    signal.translatedLanguage ?? "",
+  );
+  const [isTranslating, setIsTranslating] = useState(false);
+  const detailPoints = getDetailPoints(signal);
+
+  async function handleTranslate() {
+    setIsTranslating(true);
+    try {
+      const itemId = getBackendItemId(signal.id);
+      if (itemId == null) {
+        setTranslatedText(translateMessage(signal.summary, targetLanguage));
+        setTranslatedLanguage(targetLanguage);
+        return;
+      }
+
+      const translated = itemToSignal(await translateItem(itemId, targetLanguage));
+      setTranslatedText(cleanTranslationText(translated.translatedText ?? ""));
+      setTranslatedLanguage(translated.translatedLanguage ?? targetLanguage);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Translation failed");
+    } finally {
+      setIsTranslating(false);
+    }
+  }
 
   return (
     <article className="rounded-2xl border border-border bg-card p-4 shadow-[var(--shadow-soft)] transition hover:border-primary/30 sm:p-5">
@@ -41,7 +75,7 @@ export function SignalCard({ signal }: { signal: Signal }) {
         <TypeBadge type={signal.type} />
         {signal.aiImportance && <AiImportanceBadge level={signal.aiImportance} />}
         <span className="text-xs text-muted-foreground">{signal.source}</span>
-        <span className="text-xs text-muted-foreground">·</span>
+        <span className="text-xs text-muted-foreground">/</span>
         <span className="text-xs text-muted-foreground">{signal.date}</span>
       </header>
 
@@ -65,7 +99,7 @@ export function SignalCard({ signal }: { signal: Signal }) {
           <X className="h-4 w-4" /> Ignore
         </Button>
         <button
-          onClick={() => setExpanded((v) => !v)}
+          onClick={() => setExpanded((value) => !value)}
           className="ml-auto inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
         >
           {expanded ? (
@@ -82,18 +116,19 @@ export function SignalCard({ signal }: { signal: Signal }) {
 
       {expanded && (
         <div className="mt-4 space-y-3 border-t border-border pt-4">
-          {signal.longSummary && (
-            <p className="text-sm leading-relaxed text-foreground/85">{signal.longSummary}</p>
-          )}
+          <div className="grid gap-3 sm:grid-cols-2">
+            <DetailBlock label="Why this matters" value={signal.whyRecommended} />
+            <DetailBlock label="Suggested next step" value={signal.suggestedAction} />
+          </div>
 
-          {signal.keyPoints && signal.keyPoints.length > 0 && (
+          {detailPoints.length > 0 && (
             <div className="rounded-xl bg-secondary/60 p-3">
-              <div className="mb-1 text-xs font-medium text-foreground">Key points</div>
+              <div className="mb-1 text-xs font-medium text-foreground">Key details</div>
               <ul className="space-y-1 text-xs text-foreground/80">
-                {signal.keyPoints.map((k, i) => (
-                  <li key={i} className="flex gap-2">
-                    <span className="text-primary">•</span>
-                    <span>{k}</span>
+                {detailPoints.map((point, index) => (
+                  <li key={index} className="flex gap-2">
+                    <span className="text-primary">-</span>
+                    <span>{point}</span>
                   </li>
                 ))}
               </ul>
@@ -126,13 +161,60 @@ export function SignalCard({ signal }: { signal: Signal }) {
               <div className="text-xs">
                 <div className="font-medium text-foreground">Peer activity</div>
                 <ul className="text-foreground/80">
-                  {signal.peerActivity.map((p, i) => (
-                    <li key={i}>· {p.text}</li>
+                  {signal.peerActivity.map((activity, index) => (
+                    <li key={index}>- {activity.text}</li>
                   ))}
                 </ul>
               </div>
             </div>
           )}
+
+          {signal.longSummary && (
+            <div className="rounded-xl bg-secondary/60 p-3 text-xs">
+              <div className="mb-1 font-medium text-foreground">Source excerpt</div>
+              <p className="leading-relaxed text-foreground/80">
+                {truncate(signal.longSummary, 420)}
+              </p>
+            </div>
+          )}
+
+          <div className="rounded-xl border border-border p-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <Languages className="h-4 w-4 text-muted-foreground" />
+              <select
+                value={targetLanguage}
+                onChange={(event) => setTargetLanguage(event.target.value)}
+                className="rounded-md border border-border bg-card px-2 py-1 text-xs"
+              >
+                {LANGUAGE_OPTIONS.map((language) => (
+                  <option key={language} value={language}>
+                    {language}
+                  </option>
+                ))}
+              </select>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => void handleTranslate()}
+                disabled={isTranslating}
+              >
+                {isTranslating ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Languages className="h-4 w-4" />
+                )}
+                Translate
+              </Button>
+            </div>
+            {translatedText && (
+              <p className="mt-3 rounded-lg bg-secondary/60 p-3 text-sm leading-relaxed text-foreground/85">
+                <span className="mb-1 block text-xs font-medium text-muted-foreground">
+                  Translation {translatedLanguage}
+                </span>
+                {translatedText}
+              </p>
+            )}
+          </div>
 
           <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
             <span>Original language: {signal.originalLanguage}</span>
@@ -148,7 +230,7 @@ export function SignalCard({ signal }: { signal: Signal }) {
       <Dialog open={saveOpen} onOpenChange={setSaveOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Save signal — choose importance</DialogTitle>
+            <DialogTitle>Save signal - choose importance</DialogTitle>
             <DialogDescription>
               {signal.aiImportance ? (
                 <>
@@ -164,11 +246,11 @@ export function SignalCard({ signal }: { signal: Signal }) {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
-            {(["high", "medium", "low"] as Importance[]).map((lvl) => (
+            {(["high", "medium", "low"] as Importance[]).map((level) => (
               <label
-                key={lvl}
+                key={level}
                 className={`flex cursor-pointer items-center gap-3 rounded-xl border p-3 text-sm transition ${
-                  importance === lvl
+                  importance === level
                     ? "border-primary bg-primary/5"
                     : "border-border hover:border-primary/40"
                 }`}
@@ -176,11 +258,11 @@ export function SignalCard({ signal }: { signal: Signal }) {
                 <input
                   type="radio"
                   name="importance"
-                  checked={importance === lvl}
-                  onChange={() => setImportance(lvl)}
+                  checked={importance === level}
+                  onChange={() => setImportance(level)}
                   className="accent-[var(--primary)]"
                 />
-                <span className="font-medium capitalize text-foreground">{lvl} importance</span>
+                <span className="font-medium capitalize text-foreground">{level} importance</span>
               </label>
             ))}
           </div>
@@ -204,6 +286,15 @@ export function SignalCard({ signal }: { signal: Signal }) {
   );
 }
 
+function DetailBlock({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl bg-secondary/60 p-3 text-xs">
+      <div className="mb-1 font-medium text-foreground">{label}</div>
+      <p className="leading-relaxed text-foreground/80">{value}</p>
+    </div>
+  );
+}
+
 function Field({ label, value }: { label: string; value: string }) {
   return (
     <div>
@@ -211,4 +302,34 @@ function Field({ label, value }: { label: string; value: string }) {
       <div className="font-medium text-foreground">{value}</div>
     </div>
   );
+}
+
+function getBackendItemId(id: string): number | null {
+  const match = /^item-(\d+)$/.exec(id);
+  return match ? Number(match[1]) : null;
+}
+
+function normalizeTargetLanguage(language: string | undefined): string {
+  return LANGUAGE_OPTIONS.find((option) => option.toLowerCase() === language?.toLowerCase()) ?? "German";
+}
+
+function cleanTranslationText(text: string): string {
+  return text.replace(/^\[Demo translation fallback: ([^\]]+)\]\s*/, "[$1 preview] ");
+}
+
+function getDetailPoints(signal: Signal): string[] {
+  if (signal.keyPoints?.length) return signal.keyPoints.slice(0, 4);
+  if (!signal.longSummary) return [];
+
+  return signal.longSummary
+    .split(/(?<=[.!?])\s+/)
+    .map((sentence) => sentence.trim())
+    .filter(Boolean)
+    .slice(0, 3)
+    .map((sentence) => truncate(sentence, 180));
+}
+
+function truncate(text: string, maxLength: number): string {
+  if (text.length <= maxLength) return text;
+  return `${text.slice(0, maxLength - 3).trim()}...`;
 }

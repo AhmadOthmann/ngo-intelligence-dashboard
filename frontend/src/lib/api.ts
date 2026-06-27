@@ -247,6 +247,8 @@ export function itemToSignal(item: BackendItem): Signal {
             canApply: "check",
           }
         : undefined,
+    translatedText: item.translated_text ?? undefined,
+    translatedLanguage: item.translated_language ?? undefined,
     url: item.url,
   };
 }

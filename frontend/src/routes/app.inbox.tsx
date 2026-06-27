@@ -1,10 +1,18 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
-import { RefreshCw, Rss, Search } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import {
+  BadgeDollarSign,
+  Database,
+  RefreshCw,
+  Search,
+  Wand2,
+  type LucideIcon,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SignalCard } from "@/components/signal-card";
 import { useAppState } from "@/lib/app-state";
+import { getApiStatus, getFunding, getItemsPage, type ApiStatus } from "@/lib/api";
 
 export const Route = createFileRoute("/app/inbox")({
   head: () => ({ meta: [{ title: "Signal Inbox - FieldSignal AI" }] }),
@@ -13,6 +21,14 @@ export const Route = createFileRoute("/app/inbox")({
 
 const FILTERS = ["All", "News", "Funding", "Peer Signals", "Reports"] as const;
 const SORTS = ["Most relevant", "Most urgent", "Newest", "Deadline soon"] as const;
+const SUMMARY_LIMIT = 100;
+
+interface InboxSummary {
+  signals: number;
+  fundingLeads: number;
+  prioritySignals: number;
+  status: ApiStatus | null;
+}
 
 function InboxPage() {
   const {
@@ -32,6 +48,7 @@ function InboxPage() {
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>("All");
   const [sort, setSort] = useState<(typeof SORTS)[number]>("Most relevant");
   const [q, setQ] = useState("");
+  const [summary, setSummary] = useState<InboxSummary | null>(null);
 
   const filtered = useMemo(() => {
     const savedIds = new Set(saved.map((i) => i.signal.id));
@@ -62,8 +79,50 @@ function InboxPage() {
     return h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
   }, []);
 
+  const fallbackSummary = useMemo<InboxSummary>(
+    () => ({
+      signals: signals.length,
+      fundingLeads: signals.filter((signal) => signal.type === "funding").length,
+      prioritySignals: signals.filter((signal) => signal.priority === "urgent").length,
+      status: null,
+    }),
+    [signals],
+  );
+  const activeSummary = summary ?? fallbackSummary;
+
+  async function loadSummary() {
+    try {
+      const [status, page, funding] = await Promise.all([
+        getApiStatus(),
+        getItemsPage({ limit: SUMMARY_LIMIT, offset: 0 }),
+        getFunding(SUMMARY_LIMIT),
+      ]);
+      setSummary({
+        signals: page.count,
+        fundingLeads: funding.length,
+        prioritySignals: page.items.filter((item) => (item.relevance_score ?? 0) >= 75).length,
+        status,
+      });
+    } catch {
+      setSummary(null);
+    }
+  }
+
+  useEffect(() => {
+    void loadSummary();
+  }, []);
+
+  async function handleRefresh() {
+    await Promise.all([refreshSignals(q), loadSummary()]);
+  }
+
+  async function handleUpdateSignals() {
+    await ingestFeeds(q);
+    await loadSummary();
+  }
+
   return (
-    <div className="mx-auto max-w-4xl space-y-6 px-5 py-8">
+    <div className="mx-auto max-w-6xl space-y-6 px-5 py-8">
       <div>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
@@ -75,32 +134,46 @@ function InboxPage() {
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => void refreshSignals(q)} disabled={isLoadingSignals}>
+            <Button variant="outline" size="sm" onClick={() => void handleRefresh()} disabled={isLoadingSignals}>
               <RefreshCw className={`h-4 w-4 ${isLoadingSignals ? "animate-spin" : ""}`} />
               Refresh
             </Button>
-            <Button size="sm" onClick={() => void ingestFeeds(q)} disabled={isLoadingSignals}>
-              <Rss className="h-4 w-4" />
-              Sync RSS
+            <Button size="sm" onClick={() => void handleUpdateSignals()} disabled={isLoadingSignals}>
+              <RefreshCw className={`h-4 w-4 ${isLoadingSignals ? "animate-spin" : ""}`} />
+              Update Signals
             </Button>
           </div>
         </div>
         <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-          <span className="rounded-full border border-border bg-card px-2 py-0.5">
-            Source: {signalSource === "backend" ? "backend RSS database" : "demo signals"}
-          </span>
           {ingestResult && (
             <span>
-              Last sync: {ingestResult.ingested} new item{ingestResult.ingested === 1 ? "" : "s"}
-              {ingestResult.errors.length > 0 ? `, ${ingestResult.errors.length} feed error${ingestResult.errors.length === 1 ? "" : "s"}` : ""}
+              Last update: {ingestResult.ingested} new signal{ingestResult.ingested === 1 ? "" : "s"}
+              {ingestResult.errors.length > 0 ? `, ${ingestResult.errors.length} source issue${ingestResult.errors.length === 1 ? "" : "s"}` : ""}
             </span>
           )}
         </div>
         {signalError && (
           <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-            {signalError}. Showing demo signals until the backend is available.
+            {signalError}. Showing sample signals until live sources are available.
           </div>
         )}
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <Metric icon={Database} label="Signals" value={String(activeSummary.signals)} />
+        <Metric icon={BadgeDollarSign} label="Funding leads" value={String(activeSummary.fundingLeads)} />
+        <Metric icon={Wand2} label="Priority signals" value={String(activeSummary.prioritySignals)} />
+        <Metric
+          icon={Wand2}
+          label="Analysis"
+          value={
+            activeSummary.status
+              ? activeSummary.status.openai_configured
+                ? "Enhanced"
+                : "Basic"
+              : "Basic"
+          }
+        />
       </div>
 
       <div className="space-y-3">
@@ -116,7 +189,7 @@ function InboxPage() {
             <Input
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="Search backend items by keyword..."
+              placeholder="Search signals by keyword"
               className="pl-9"
             />
           </div>
@@ -169,6 +242,26 @@ function InboxPage() {
           </Button>
         </div>
       )}
+    </div>
+  );
+}
+
+function Metric({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: LucideIcon;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="rounded-lg border border-border bg-card p-4">
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-xs font-medium uppercase text-muted-foreground">{label}</span>
+        <Icon className="h-4 w-4 text-primary" />
+      </div>
+      <div className="mt-2 truncate text-2xl font-semibold text-foreground">{value}</div>
     </div>
   );
 }

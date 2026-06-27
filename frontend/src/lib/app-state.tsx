@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import { getItems, ingestRss, itemToSignal, type IngestResult } from "./api";
+import { translateMessage } from "./ai-mock";
 import { BURUNDI_KIDS, DEMO_CONVERSATIONS, DEMO_SIGNALS } from "./demo-data";
 import type {
   ChatMessage,
@@ -164,18 +165,22 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
 
   const sendMessage = useCallback((convId: string, text: string, lang: string) => {
     const now = new Date();
-    const msg: ChatMessage = {
-      id: `m-${Date.now()}`,
-      sender: "me",
-      originalText: text,
-      originalLang: lang,
-      translatedText: text, // mock translation
-      targetLang: "auto",
-      timestamp: now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-      sentAt: now.toISOString(),
-    };
     setConversations((prev) =>
-      prev.map((c) => (c.id === convId ? { ...c, messages: [...c.messages, msg] } : c)),
+      prev.map((conversation) => {
+        if (conversation.id !== convId) return conversation;
+        const targetLang = inferPeerLanguage(conversation, lang);
+        const msg: ChatMessage = {
+          id: `m-${Date.now()}`,
+          sender: "me",
+          originalText: text,
+          originalLang: languageCode(lang),
+          translatedText: translateMessage(text, targetLang),
+          targetLang,
+          timestamp: now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+          sentAt: now.toISOString(),
+        };
+        return { ...conversation, messages: [...conversation.messages, msg] };
+      }),
     );
   }, []);
 
@@ -238,4 +243,25 @@ export function useAppState() {
   const v = useContext(Ctx);
   if (!v) throw new Error("useAppState must be used inside AppStateProvider");
   return v;
+}
+
+function inferPeerLanguage(conversation: Conversation, ownLanguage: string): string {
+  const peerMessage = conversation.messages.find((message) => message.sender === "peer");
+  if (peerMessage) return peerMessage.originalLang;
+
+  const codes = conversation.translationStatus.match(/\b[A-Z]{2}\b/g);
+  if (codes && codes.length >= 2) {
+    const ownCode = languageCode(ownLanguage);
+    return codes[0] === ownCode ? codes[1] : codes[0];
+  }
+
+  return "peer language";
+}
+
+function languageCode(language: string): string {
+  const normalized = language.trim().toLowerCase();
+  if (normalized.startsWith("german") || normalized === "de") return "DE";
+  if (normalized.startsWith("french") || normalized === "fr") return "FR";
+  if (normalized.startsWith("english") || normalized === "en") return "EN";
+  return language || "auto";
 }

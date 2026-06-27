@@ -1,4 +1,4 @@
-import { Link, createFileRoute } from "@tanstack/react-router";
+import { Link, createFileRoute, redirect } from "@tanstack/react-router";
 import { ArrowRight, Inbox, Languages, Users } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { Button } from "@/components/ui/button";
@@ -6,6 +6,9 @@ import { useAppState } from "@/lib/app-state";
 import { useNavigate } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/")({
+  beforeLoad: () => {
+    throw redirect({ to: "/signup" });
+  },
   head: () => ({
     meta: [
       { title: "FieldSignal AI — NGO intelligence, routed to the right organization" },
