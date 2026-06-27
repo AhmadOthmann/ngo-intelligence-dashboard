@@ -95,11 +95,11 @@ npm run dev
 1. Start backend: `uvicorn backend.main:app --reload`
 2. Start frontend: `cd frontend; npm run dev`
 3. Open `http://127.0.0.1:5173/app/dashboard`
-4. Click `Ingest RSS`
-5. Click `Scrape Web` to fetch readable text from configured web pages
-6. Click `Analyze all`
-7. Review stats, item table, funding section, and digest
-8. Open an item and translate it to German, French, or English
+4. Click `Update Feeds`
+5. Click `Search Web` to fetch readable text from configured web pages
+6. Click `Prioritize`
+7. Review signals, funding leads, priority counts, and briefing
+8. Open a signal and translate it to German, French, or English
 9. For a clean scripted demo, call `POST /demo/reset`, then refresh the dashboard
 
 ## API Usage Note

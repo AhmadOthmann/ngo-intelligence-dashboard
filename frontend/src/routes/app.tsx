@@ -1,6 +1,6 @@
 import { Link, Outlet, createFileRoute, useRouterState } from "@tanstack/react-router";
 import { useEffect } from "react";
-import { Bookmark, Inbox, LayoutDashboard, MessageCircle, Radio, User } from "lucide-react";
+import { Bookmark, LayoutDashboard, Radio } from "lucide-react";
 import { useAppState } from "@/lib/app-state";
 
 export const Route = createFileRoute("/app")({
@@ -8,11 +8,8 @@ export const Route = createFileRoute("/app")({
 });
 
 const NAV = [
-  { to: "/app/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/app/inbox", label: "Signal Inbox", icon: Inbox },
+  { to: "/app/dashboard", label: "Intelligence", icon: LayoutDashboard },
   { to: "/app/saved", label: "Saved Signals", icon: Bookmark },
-  { to: "/app/chat", label: "Peer Chat", icon: MessageCircle },
-  { to: "/app/profile", label: "Profile", icon: User },
 ] as const;
 
 function AppLayout() {
@@ -63,7 +60,7 @@ function AppLayout() {
           <div className="font-medium text-white">{profile?.name ?? "Your NGO"}</div>
           <div className="opacity-80">
             {profile?.country ?? ""}
-            {profile?.language ? ` · ${profile.language}` : ""}
+            {profile?.language ? ` / ${profile.language}` : ""}
           </div>
         </div>
       </aside>

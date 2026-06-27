@@ -146,13 +146,13 @@ function DashboardPage() {
     try {
       const result = await ingestRss();
       setNotice(
-        `RSS sync added ${result.ingested} item${result.ingested === 1 ? "" : "s"}${
-          result.errors.length ? ` with ${result.errors.length} feed error(s)` : ""
+        `Updated news feeds: ${result.ingested} new signal${result.ingested === 1 ? "" : "s"}${
+          result.errors.length ? `, ${result.errors.length} source issue(s)` : ""
         }.`,
       );
       await loadDashboard(undefined, "refresh");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "RSS ingestion failed");
+      setError(err instanceof Error ? err.message : "Could not update news feeds");
       setAction(null);
     }
   }
@@ -164,13 +164,13 @@ function DashboardPage() {
     try {
       const result = await scrapeWeb();
       setNotice(
-        `Web scraper stored ${result.scraped} page${result.scraped === 1 ? "" : "s"}${
+        `Web search saved ${result.scraped} source page${result.scraped === 1 ? "" : "s"}${
           result.skipped ? ` and skipped ${result.skipped}` : ""
-        }${result.errors.length ? ` with ${result.errors.length} scrape error(s)` : ""}.`,
+        }${result.errors.length ? `, ${result.errors.length} source issue(s)` : ""}.`,
       );
       await loadDashboard(undefined, "refresh");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Web scraping failed");
+      setError(err instanceof Error ? err.message : "Could not search web sources");
       setAction(null);
     }
   }
@@ -182,13 +182,13 @@ function DashboardPage() {
     try {
       const result = await analyzeAll(PAGE_LIMIT);
       setNotice(
-        `Analyzed ${result.analyzed} item${result.analyzed === 1 ? "" : "s"}${
-          result.errors.length ? ` with ${result.errors.length} error(s)` : ""
+        `Prioritized ${result.analyzed} signal${result.analyzed === 1 ? "" : "s"}${
+          result.errors.length ? `, ${result.errors.length} issue(s)` : ""
         }.`,
       );
       await loadDashboard(undefined, "refresh");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Bulk analysis failed");
+      setError(err instanceof Error ? err.message : "Could not prioritize signals");
       setAction(null);
     }
   }
@@ -200,9 +200,9 @@ function DashboardPage() {
     try {
       const nextDigest = await getDigest();
       setDigest(nextDigest);
-      setNotice("Generated NGO briefing digest.");
+      setNotice("Briefing updated.");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Digest generation failed");
+      setError(err instanceof Error ? err.message : "Could not create briefing");
     } finally {
       setAction(null);
     }
@@ -216,9 +216,9 @@ function DashboardPage() {
     try {
       const updated = await analyzeItem(selectedItem.id);
       updateVisibleItem(updated);
-      setNotice(`Analyzed item #${updated.id}.`);
+      setNotice("Signal prioritized.");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Item analysis failed");
+      setError(err instanceof Error ? err.message : "Could not prioritize this signal");
     } finally {
       setAction(null);
     }
@@ -232,7 +232,7 @@ function DashboardPage() {
     try {
       const updated = await translateItem(selectedItem.id, targetLanguage);
       updateVisibleItem(updated);
-      setNotice(`Translated item #${updated.id} to ${targetLanguage}.`);
+      setNotice(`Signal translated to ${targetLanguage}.`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Translation failed");
     } finally {
@@ -275,7 +275,7 @@ function DashboardPage() {
             NGO Intelligence Dashboard
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Burundi Kids and WTG live RSS intelligence.
+            News, funding, and action briefings for Burundi Kids and WTG.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -289,19 +289,19 @@ function DashboardPage() {
           </Button>
           <Button variant="outline" onClick={() => void handleIngest()} disabled={isBusy}>
             {action === "ingest" ? <Loader2 className="animate-spin" /> : <Rss />}
-            Ingest RSS
+            Update Feeds
           </Button>
           <Button variant="outline" onClick={() => void handleScrapeWeb()} disabled={isBusy}>
             {action === "scrape" ? <Loader2 className="animate-spin" /> : <Search />}
-            Scrape Web
+            Search Web
           </Button>
           <Button onClick={() => void handleAnalyzeAll()} disabled={isBusy}>
             {action === "analyze-all" ? <Loader2 className="animate-spin" /> : <Wand2 />}
-            Analyze all
+            Prioritize
           </Button>
           <Button variant="outline" onClick={() => void handleGenerateDigest()} disabled={isBusy}>
             {action === "digest" ? <Loader2 className="animate-spin" /> : <Database />}
-            Generate Digest
+            Create Briefing
           </Button>
         </div>
       </div>
@@ -309,27 +309,29 @@ function DashboardPage() {
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <Metric
           icon={Server}
-          label="API health"
-          value={status ? `${status.status} / DB ${status.database}` : "offline"}
+          label="Monitoring"
+          value={status?.status === "ok" && status.database === "ok" ? "Ready" : "Offline"}
         />
-        <Metric icon={Database} label="Total items" value={String(totalItems)} />
-        <Metric icon={BadgeDollarSign} label="Funding" value={String(fundingItems.length)} />
+        <Metric icon={Database} label="Signals" value={String(totalItems)} />
+        <Metric icon={BadgeDollarSign} label="Funding leads" value={String(fundingItems.length)} />
         <Metric
           icon={Wand2}
-          label="AI mode"
+          label="Analysis"
           value={
             status
-              ? `${status.ai_provider}${status.openai_configured ? " active" : " fallback"}`
-              : "unknown"
+              ? status.openai_configured
+                ? "Enhanced"
+                : "Basic"
+              : "Unknown"
           }
         />
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Metric icon={Wand2} label="High relevance" value={String(highRelevanceCount)} />
+        <Metric icon={Wand2} label="Priority signals" value={String(highRelevanceCount)} />
         <Metric icon={Languages} label="Translated" value={String(translatedCount)} />
-        <Metric icon={BadgeDollarSign} label="Funding view" value={fundingOnly ? "on" : "off"} />
-        <Metric icon={Search} label="Search results" value={String(items.length)} />
+        <Metric icon={BadgeDollarSign} label="Funding filter" value={fundingOnly ? "On" : "Off"} />
+        <Metric icon={Search} label="Visible now" value={String(items.length)} />
       </div>
 
       {(notice || error) && (
@@ -359,7 +361,7 @@ function DashboardPage() {
                 <Input
                   value={q}
                   onChange={(event) => setQ(event.target.value)}
-                  placeholder="Search stored items"
+                  placeholder="Search news, funding, countries, or topics"
                   className="pl-9"
                 />
               </div>
@@ -377,7 +379,7 @@ function DashboardPage() {
               </Select>
               <label className="flex h-9 items-center gap-2 rounded-md border border-input px-3 text-sm">
                 <Switch checked={fundingOnly} onCheckedChange={setFundingOnly} />
-                Funding
+                Funding only
               </label>
               <Button type="submit" variant="outline" disabled={isBusy}>
                 Search
@@ -388,9 +390,9 @@ function DashboardPage() {
           <section className="rounded-lg border border-border bg-card">
             <div className="flex items-center justify-between gap-3 px-4 py-3">
               <div>
-                <h2 className="text-sm font-semibold text-foreground">Items</h2>
+                <h2 className="text-sm font-semibold text-foreground">Intelligence Signals</h2>
                 <p className="text-xs text-muted-foreground">
-                  Newest first, showing up to {PAGE_LIMIT}.
+                  Review the latest signals and suggested next steps.
                 </p>
               </div>
               <Badge variant="secondary">{items.length}</Badge>
@@ -401,7 +403,7 @@ function DashboardPage() {
                   <TableHead>Title</TableHead>
                   <TableHead className="hidden w-32 md:table-cell">Category</TableHead>
                   <TableHead className="hidden w-24 md:table-cell">Score</TableHead>
-                  <TableHead className="hidden min-w-[180px] lg:table-cell">Action</TableHead>
+                  <TableHead className="hidden min-w-[180px] lg:table-cell">Recommended Action</TableHead>
                   <TableHead className="w-28">Source</TableHead>
                 </TableRow>
               </TableHeader>
@@ -409,7 +411,7 @@ function DashboardPage() {
                 {items.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
-                      No items found.
+                      No signals found.
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -441,7 +443,7 @@ function DashboardPage() {
                       </TableCell>
                       <TableCell className="hidden text-xs text-muted-foreground lg:table-cell">
                         <span className="line-clamp-2">
-                          {item.recommended_action ?? "Analyze to generate action."}
+                          {item.recommended_action ?? "Prioritize to generate next step."}
                         </span>
                       </TableCell>
                       <TableCell className="max-w-[130px] truncate text-xs text-muted-foreground">
@@ -457,7 +459,7 @@ function DashboardPage() {
           <section className="rounded-lg border border-border bg-card p-4">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <h2 className="text-sm font-semibold text-foreground">Funding</h2>
+                <h2 className="text-sm font-semibold text-foreground">Funding Leads</h2>
                 <p className="text-xs text-muted-foreground">
                   {fundingItems.length} opportunity{fundingItems.length === 1 ? "" : "ies"} visible.
                 </p>
@@ -466,7 +468,7 @@ function DashboardPage() {
             </div>
             <div className="mt-3 divide-y divide-border">
               {fundingItems.length === 0 ? (
-                <div className="py-6 text-sm text-muted-foreground">No funding items found.</div>
+                <div className="py-6 text-sm text-muted-foreground">No funding leads found.</div>
               ) : (
                 fundingItems.slice(0, 6).map((item) => (
                   <button
@@ -494,16 +496,16 @@ function DashboardPage() {
         <aside className="space-y-5">
           <section className="rounded-lg border border-border bg-card p-4">
             <div className="flex items-center justify-between gap-3">
-              <h2 className="text-sm font-semibold text-foreground">Digest</h2>
+              <h2 className="text-sm font-semibold text-foreground">Briefing</h2>
               <Badge variant="outline">
                 {digest ? formatDate(digest.generated_at) : "Pending"}
               </Badge>
             </div>
             <h3 className="mt-3 text-base font-semibold text-foreground">
-              {digest?.headline ?? "Digest unavailable"}
+              {digest?.headline ?? "Briefing unavailable"}
             </h3>
             <p className="mt-2 text-sm leading-6 text-muted-foreground">
-              {digest?.executive_summary ?? "Generate a digest after ingesting or analyzing items."}
+              {digest?.executive_summary ?? "Create a briefing after updating and prioritizing sources."}
             </p>
             <DigestList title="Top priorities" items={digest?.top_priorities ?? []} />
             <DigestList
@@ -532,9 +534,9 @@ function DashboardPage() {
           <section className="rounded-lg border border-border bg-card p-4">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <h2 className="text-sm font-semibold text-foreground">Item detail</h2>
+                <h2 className="text-sm font-semibold text-foreground">Signal Detail</h2>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  {selectedItem ? `#${selectedItem.id} - ${selectedItem.source}` : "No item selected"}
+                  {selectedItem ? `Source: ${selectedItem.source}` : "No signal selected"}
                 </p>
               </div>
               {selectedItem?.url && (
@@ -577,7 +579,7 @@ function DashboardPage() {
                       Why relevant
                     </div>
                     <p className="mt-1 text-sm leading-6 text-foreground">
-                      {selectedItem.why_relevant ?? "Analyze this item to generate NGO relevance."}
+                      {selectedItem.why_relevant ?? "Prioritize this signal to generate NGO relevance."}
                     </p>
                   </div>
                   <div>
@@ -585,13 +587,13 @@ function DashboardPage() {
                       Recommended action
                     </div>
                     <p className="mt-1 text-sm leading-6 text-foreground">
-                      {selectedItem.recommended_action ?? "Analyze this item to generate next steps."}
+                      {selectedItem.recommended_action ?? "Prioritize this signal to generate next steps."}
                     </p>
                   </div>
                 </div>
 
                 <div>
-                  <div className="text-xs font-medium uppercase text-muted-foreground">Raw text</div>
+                  <div className="text-xs font-medium uppercase text-muted-foreground">Source excerpt</div>
                   <p className="mt-1 max-h-40 overflow-auto rounded-md border border-border bg-background p-3 text-sm leading-6 text-muted-foreground">
                     {truncate(cleanText(selectedItem.raw_text), 1200)}
                   </p>
@@ -604,7 +606,7 @@ function DashboardPage() {
                     disabled={isBusy}
                   >
                     {action === "analyze-item" ? <Loader2 className="animate-spin" /> : <Wand2 />}
-                    Analyze item
+                    Prioritize signal
                   </Button>
                   <div className="grid grid-cols-[130px_auto] gap-2">
                     <Select
@@ -648,7 +650,7 @@ function DashboardPage() {
               </div>
             ) : (
               <div className="mt-6 rounded-md border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-                No item selected.
+                No signal selected.
               </div>
             )}
           </section>
@@ -704,11 +706,11 @@ function uniqueItems(items: BackendItem[]): BackendItem[] {
 }
 
 function categoryLabel(category: BackendItem["category"]): string {
-  return category ?? "Unanalyzed";
+  return category ?? "Needs review";
 }
 
 function formatScore(score: number | null): string {
-  return score == null ? "No score" : `${Math.round(score)}%`;
+  return score == null ? "Pending" : `${Math.round(score)}%`;
 }
 
 function formatDate(value: string): string {
