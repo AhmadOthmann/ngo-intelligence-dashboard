@@ -8,7 +8,12 @@ import {
   type ReactNode,
 } from "react";
 import { getItems, ingestRss, itemToSignal, translateText, type IngestResult } from "./api";
-import { BURUNDI_KIDS, DEMO_CONVERSATIONS, DEMO_SIGNALS } from "./demo-data";
+import {
+  BURUNDI_KIDS,
+  DEMO_CONVERSATIONS,
+  DEMO_SIGNALS,
+  FEATURED_INBOX_SIGNAL,
+} from "./demo-data";
 import { localeFromLanguage } from "./i18n";
 import type {
   ChatMessage,
@@ -249,7 +254,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       profile,
       setProfile,
       loginAsDemo,
-      signals: hasLoadedBackendSignals ? backendSignals : DEMO_SIGNALS,
+      signals: hasLoadedBackendSignals ? pinFeaturedSignal(backendSignals) : DEMO_SIGNALS,
       signalSource: hasLoadedBackendSignals ? "backend" : "demo",
       isLoadingSignals,
       signalError,
@@ -279,6 +284,17 @@ export function useAppState() {
   const v = useContext(Ctx);
   if (!v) throw new Error("useAppState must be used inside AppStateProvider");
   return v;
+}
+
+function pinFeaturedSignal(signals: Signal[]): Signal[] {
+  return [
+    FEATURED_INBOX_SIGNAL,
+    ...signals.filter(
+      (signal) =>
+        signal.id !== FEATURED_INBOX_SIGNAL.id &&
+        signal.url !== FEATURED_INBOX_SIGNAL.url,
+    ),
+  ];
 }
 
 function inferPeerLanguage(conversation: Conversation, ownLanguage: string): string {

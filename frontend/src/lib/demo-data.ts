@@ -78,7 +78,34 @@ export const WTG: NgoProfile = {
   sources: ["News articles", "Funding calls", "RSS feeds"],
 };
 
+export const FEATURED_INBOX_SIGNAL: Signal = {
+  id: "recadec-great-lakes-generation",
+  priority: "urgent",
+  type: "news",
+  title: "A new generation ready to transform the Great Lakes Region",
+  source: "RECADEC East Africa",
+  date: "4 March 2026",
+  originalLanguage: "English",
+  summary:
+    "RECADEC launched the Academy of Champions of Hope in Bujumbura, bringing young people from Burundi, DRC, and Rwanda into a one-year entrepreneurship and leadership program for peacebuilding and regional transformation.",
+  longSummary:
+    "The Academy of Champions of Hope opened its first cohort in Bujumbura with 30 young participants from Burundi, the Democratic Republic of Congo, and Rwanda. The program combines entrepreneurship training, leadership development, and regional cooperation so young people can build practical projects that support peace and economic resilience across the Great Lakes region.",
+  keyPoints: [
+    "Launched in Bujumbura with youth from Burundi, DRC, and Rwanda",
+    "Focuses on entrepreneurship, leadership, peacebuilding, and regional cooperation",
+    "Relevant for education, youth empowerment, and Great Lakes partner networks",
+  ],
+  aiImportance: "urgent",
+  whyRecommended:
+    "Strong match for Burundi Kids because it combines Burundi, youth empowerment, education, vocational skills, and Great Lakes regional cooperation.",
+  peerActivity: [{ text: "Relevant to NGOs working with youth in the Great Lakes Region" }],
+  suggestedAction:
+    "Review for potential youth entrepreneurship partners, field contacts, or proposal evidence around regional youth leadership.",
+  url: "https://recadec.org/en/a-new-generation-ready-to-transform-the-great-lakes-region/",
+};
+
 export const DEMO_SIGNALS: Signal[] = [
+  FEATURED_INBOX_SIGNAL,
   {
     id: "sig-1",
     priority: "relevant",
