@@ -12,6 +12,11 @@ import { FUNDING_CHIPS, LANGUAGE_OPTIONS, TOPIC_OPTIONS } from "@/lib/demo-data"
 import { generateNgoProfile } from "@/lib/ai-mock";
 import { useAppState } from "@/lib/app-state";
 import type { NgoProfile } from "@/lib/types";
+import {
+  knownLabel,
+  languageOptionLabel,
+  localeFromLanguage,
+} from "@/lib/i18n";
 
 export const Route = createFileRoute("/onboarding")({
   head: () => ({
@@ -23,7 +28,19 @@ export const Route = createFileRoute("/onboarding")({
   component: Onboarding,
 });
 
-const STEPS = ["Basics", "Topics", "Funding", "Sources", "Confirm"];
+const STEPS = ["basics", "topics", "funding", "sources", "confirm"] as const;
+const SOURCE_OPTIONS = [
+  "News articles",
+  "Funding calls",
+  "NGO reports",
+  "Emails and newsletters",
+  "Peer-saved resources",
+  "Public posts from similar NGOs",
+  "Google Alerts",
+  "RSS feeds",
+];
+const APPLICANT_TYPES = ["German NGO", "local NGO", "international NGO", "partner application"];
+const URGENCY_OPTIONS = ["Any", "Within 3 months", "Within 6 months", "Long-term planning"];
 const TOPIC_SUGGESTION_RULES = [
   { topic: "Education", terms: ["education", "school", "learning", "literacy", "teacher", "student", "classroom"] },
   { topic: "Children and youth", terms: ["children", "child", "youth", "young people", "adolescent", "student"] },
@@ -104,8 +121,8 @@ function Onboarding() {
   // Step 3
   const [fundingEnabled, setFundingEnabled] = useState(true);
   const [fundingRegions, setFundingRegions] = useState<string[]>(INITIAL_SUGGESTIONS.fundingRegions);
-  const [minAmt, setMinAmt] = useState("€5,000");
-  const [maxAmt, setMaxAmt] = useState("€100,000");
+  const [minAmt, setMinAmt] = useState("EUR 5,000");
+  const [maxAmt, setMaxAmt] = useState("EUR 100,000");
   const [applicantTypes, setApplicantTypes] = useState<string[]>(INITIAL_SUGGESTIONS.applicantTypes);
   const [fundingTopics, setFundingTopics] = useState<string[]>(INITIAL_SUGGESTIONS.fundingTopics);
   const [fundingChips, setFundingChips] = useState<string[]>(INITIAL_SUGGESTIONS.fundingChips);
@@ -203,6 +220,7 @@ function Onboarding() {
       sourcesNote,
     };
   }, [profilePreview, name, country, city, language, website, description, topics, keywords, fundingEnabled, fundingRegions, minAmt, maxAmt, applicantTypes, fundingTopics, fundingChips, urgency, sources, sourcesNote]);
+  const copy = onboardingCopy(language);
 
   return (
     <div className="min-h-screen bg-secondary/40 px-4 py-8">
@@ -210,32 +228,34 @@ function Onboarding() {
         <div className="mb-6 flex items-center justify-between">
           <Logo />
           <div className="text-xs text-muted-foreground">
-            Step {step + 1} of {STEPS.length}
+            {copy.stepCounter(step + 1, STEPS.length)}
           </div>
         </div>
 
-        <Stepper step={step} />
+        <Stepper step={step} labels={copy.stepLabels} />
 
         <div className="mt-6 rounded-2xl border border-border bg-card p-8 shadow-[var(--shadow-soft)]">
           {step === 0 && (
             <div className="space-y-5">
-              <SectionHead title="Basic organization information" subtitle="Tell us who you are. This shapes the signals you'll see." />
-              <Field label="Organization name"><Input value={name} onChange={(e) => setName(e.target.value)} /></Field>
+              <SectionHead title={copy.basicsTitle} subtitle={copy.basicsSubtitle} />
+              <Field label={copy.organizationName}><Input value={name} onChange={(e) => setName(e.target.value)} /></Field>
               <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="Country"><Input value={country} onChange={(e) => setCountry(e.target.value)} placeholder="e.g. Burundi" /></Field>
-                <Field label="City / region"><Input value={city} onChange={(e) => setCity(e.target.value)} /></Field>
+                <Field label={copy.country}><Input value={country} onChange={(e) => setCountry(e.target.value)} placeholder={copy.countryPlaceholder} /></Field>
+                <Field label={copy.cityRegion}><Input value={city} onChange={(e) => setCity(e.target.value)} /></Field>
               </div>
-              <Field label="Preferred language">
+              <Field label={copy.preferredLanguage}>
                 <div className="flex flex-wrap gap-2">
                   {LANGUAGE_OPTIONS.map((l) => (
-                    <Chip key={l} active={language === l} onClick={() => setLanguage(l)}>{l}</Chip>
+                    <Chip key={l} active={language === l} onClick={() => setLanguage(l)}>
+                      {languageOptionLabel(language, l)}
+                    </Chip>
                   ))}
                 </div>
               </Field>
-              <Field label="Website URL (optional)" hint="If you add your website, AI can better understand your mission, regions, topics, and funding needs.">
+              <Field label={copy.websiteLabel} hint={copy.websiteHint}>
                 <Input value={website} onChange={(e) => setWebsite(e.target.value)} placeholder="https://..." />
               </Field>
-              <Field label="Short organization description">
+              <Field label={copy.descriptionLabel}>
                 <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} />
               </Field>
             </div>
@@ -243,7 +263,7 @@ function Onboarding() {
 
           {step === 1 && (
             <div className="space-y-5">
-              <SectionHead title="What topics matter to your work?" subtitle="Pick everything that fits. You can change this later." />
+              <SectionHead title={copy.topicsTitle} subtitle={copy.topicsSubtitle} />
               <div className="flex flex-wrap gap-2">
                 {TOPIC_OPTIONS.map((t) => (
                   <Chip
@@ -254,11 +274,11 @@ function Onboarding() {
                       setTopics((p) => p.includes(t) ? p.filter((x) => x !== t) : [...p, t]);
                     }}
                   >
-                    {t}
+                    {knownLabel(language, t)}
                   </Chip>
                 ))}
               </div>
-              <Field label="Add your own keywords or topics" hint="Comma-separated. Helps AI catch local terms.">
+              <Field label={copy.keywordsLabel} hint={copy.keywordsHint}>
                 <Textarea
                   value={keywords}
                   onChange={(e) => {
@@ -266,30 +286,30 @@ function Onboarding() {
                     setKeywords(e.target.value);
                   }}
                   rows={3}
-                  placeholder="Burundi, Bujumbura, Gitega, Gateri, Great Lakes Region, girls' education, BMZ funding, small grants, rabies, wildlife trade…"
+                  placeholder={copy.keywordsPlaceholder}
                 />
               </Field>
               <div className="flex flex-wrap gap-2">
                 <Button type="button" variant="outline" onClick={applySuggestedDefaults}>
-                  <Sparkles className="h-4 w-4" /> Use description suggestions
+                  <Sparkles className="h-4 w-4" /> {copy.useDescriptionSuggestions}
                 </Button>
                 <Button
                   type="button"
                   variant="outline"
                   onClick={() => setProfilePreview(generateNgoProfile({ name, country, language, description, topics, keywords }))}
                 >
-                  <Sparkles className="h-4 w-4" /> Generate AI topic profile
+                  <Sparkles className="h-4 w-4" /> {copy.generateAiTopicProfile}
                 </Button>
               </div>
               {profilePreview && (
                 <div className="rounded-xl border border-[var(--peer)]/20 bg-[var(--peer-bg)]/40 p-4 text-sm">
                   <div className="mb-2 flex items-center gap-2 font-medium text-[var(--peer)]">
-                    <Sparkles className="h-4 w-4" /> AI-generated profile preview
+                    <Sparkles className="h-4 w-4" /> {copy.aiGeneratedPreview}
                   </div>
-                  <PreviewLine label="Detected focus areas" value={profilePreview.focusAreas.join(", ")} />
-                  <PreviewLine label="Detected regions" value={profilePreview.regions.join(", ")} />
-                  <PreviewLine label="Suggested extra keywords" value={profilePreview.suggestedKeywords.join(", ")} />
-                  <div className="mt-2 text-xs text-muted-foreground">You can refine this in the next steps.</div>
+                  <PreviewLine label={copy.detectedFocusAreas} value={localizedList(profilePreview.focusAreas, language)} />
+                  <PreviewLine label={copy.detectedRegions} value={localizedList(profilePreview.regions, language)} />
+                  <PreviewLine label={copy.suggestedExtraKeywords} value={localizedList(profilePreview.suggestedKeywords, language)} />
+                  <div className="mt-2 text-xs text-muted-foreground">{copy.refineLater}</div>
                 </div>
               )}
             </div>
@@ -297,17 +317,17 @@ function Onboarding() {
 
           {step === 2 && (
             <div className="space-y-5">
-              <SectionHead title="Funding preferences" subtitle="Only show funding that fits your eligibility and capacity." />
+              <SectionHead title={copy.fundingTitle} subtitle={copy.fundingSubtitle} />
               <div className="flex items-center justify-between rounded-xl border border-border p-4">
                 <div>
-                  <div className="text-sm font-medium">Receive funding opportunities</div>
-                  <div className="text-xs text-muted-foreground">Get matched funding calls in your inbox.</div>
+                  <div className="text-sm font-medium">{copy.receiveFunding}</div>
+                  <div className="text-xs text-muted-foreground">{copy.receiveFundingHint}</div>
                 </div>
                 <Switch checked={fundingEnabled} onCheckedChange={setFundingEnabled} />
               </div>
               {fundingEnabled && (
                 <>
-                  <Field label="Funding regions">
+                  <Field label={copy.fundingRegions}>
                     <div className="flex flex-wrap gap-2">
                       {fundingRegionOptions.map((r) => (
                         <Chip
@@ -318,18 +338,18 @@ function Onboarding() {
                             setFundingRegions((p) => p.includes(r) ? p.filter((x) => x !== r) : [...p, r]);
                           }}
                         >
-                          {r}
+                          {knownLabel(language, r)}
                         </Chip>
                       ))}
                     </div>
                   </Field>
                   <div className="grid gap-4 sm:grid-cols-2">
-                    <Field label="Minimum funding amount"><Input value={minAmt} onChange={(e) => setMinAmt(e.target.value)} /></Field>
-                    <Field label="Maximum funding amount"><Input value={maxAmt} onChange={(e) => setMaxAmt(e.target.value)} /></Field>
+                    <Field label={copy.minimumFundingAmount}><Input value={minAmt} onChange={(e) => setMinAmt(e.target.value)} /></Field>
+                    <Field label={copy.maximumFundingAmount}><Input value={maxAmt} onChange={(e) => setMaxAmt(e.target.value)} /></Field>
                   </div>
-                  <Field label="Applicant type">
+                  <Field label={copy.applicantType}>
                     <div className="flex flex-wrap gap-2">
-                      {["German NGO", "local NGO", "international NGO", "partner application"].map((a) => (
+                      {APPLICANT_TYPES.map((a) => (
                         <Chip
                           key={a}
                           active={applicantTypes.includes(a)}
@@ -338,12 +358,12 @@ function Onboarding() {
                             setApplicantTypes((p) => p.includes(a) ? p.filter((x) => x !== a) : [...p, a]);
                           }}
                         >
-                          {a}
+                          {knownLabel(language, a)}
                         </Chip>
                       ))}
                     </div>
                   </Field>
-                  <Field label="Topics for funding">
+                  <Field label={copy.topicsForFunding}>
                     <div className="flex flex-wrap gap-2">
                       {topics.map((t) => (
                         <Chip
@@ -354,12 +374,12 @@ function Onboarding() {
                             setFundingTopics((p) => p.includes(t) ? p.filter((x) => x !== t) : [...p, t]);
                           }}
                         >
-                          {t}
+                          {knownLabel(language, t)}
                         </Chip>
                       ))}
                     </div>
                   </Field>
-                  <Field label="Funding tags">
+                  <Field label={copy.fundingTags}>
                     <div className="flex flex-wrap gap-2">
                       {FUNDING_CHIPS.map((c) => (
                         <Chip
@@ -370,15 +390,17 @@ function Onboarding() {
                             setFundingChips((p) => p.includes(c) ? p.filter((x) => x !== c) : [...p, c]);
                           }}
                         >
-                          {c}
+                          {knownLabel(language, c)}
                         </Chip>
                       ))}
                     </div>
                   </Field>
-                  <Field label="Deadline urgency preference">
+                  <Field label={copy.deadlineUrgency}>
                     <div className="flex flex-wrap gap-2">
-                      {["Any", "Within 3 months", "Within 6 months", "Long-term planning"].map((u) => (
-                        <Chip key={u} active={urgency === u} onClick={() => setUrgency(u)}>{u}</Chip>
+                      {URGENCY_OPTIONS.map((u) => (
+                        <Chip key={u} active={urgency === u} onClick={() => setUrgency(u)}>
+                          {knownLabel(language, u)}
+                        </Chip>
                       ))}
                     </div>
                   </Field>
@@ -389,18 +411,9 @@ function Onboarding() {
 
           {step === 3 && (
             <div className="space-y-5">
-              <SectionHead title="What sources should we monitor?" subtitle="Mix and match. You can add more later." />
+              <SectionHead title={copy.sourcesTitle} subtitle={copy.sourcesSubtitle} />
               <div className="grid gap-2 sm:grid-cols-2">
-                {[
-                  "News articles",
-                  "Funding calls",
-                  "NGO reports",
-                  "Emails and newsletters",
-                  "Peer-saved resources",
-                  "Public posts from similar NGOs",
-                  "Google Alerts",
-                  "RSS feeds",
-                ].map((s) => (
+                {SOURCE_OPTIONS.map((s) => (
                   <label key={s} className="flex items-center gap-2 rounded-xl border border-border p-3 text-sm">
                     <Checkbox
                       checked={sources.includes(s)}
@@ -409,11 +422,11 @@ function Onboarding() {
                         setSources((p) => c ? [...p, s] : p.filter((x) => x !== s));
                       }}
                     />
-                    {s}
+                    {knownLabel(language, s)}
                   </label>
                 ))}
               </div>
-              <Field label="Paste RSS feeds, Google Alert keywords, or websites you already monitor (optional)">
+              <Field label={copy.sourcesNoteLabel}>
                 <Textarea value={sourcesNote} onChange={(e) => setSourcesNote(e.target.value)} rows={3} />
               </Field>
             </div>
@@ -421,21 +434,21 @@ function Onboarding() {
 
           {step === 4 && (
             <div className="space-y-5">
-              <SectionHead title="Your AI Relevance Profile" subtitle="This is what Impact Atlas will use to route signals to you." />
+              <SectionHead title={copy.confirmTitle} subtitle={copy.confirmSubtitle} />
               <div className="rounded-xl border border-border bg-secondary/40 p-5 text-sm">
-                <ProfileRow label="Organization" value={finalProfile.name} />
-                <ProfileRow label="Country" value={finalProfile.country} />
-                <ProfileRow label="Preferred language" value={finalProfile.language} />
-                <ProfileRow label="Regions" value={finalProfile.regions.join(", ")} />
-                <ProfileRow label="Topics" value={finalProfile.topics.join(", ")} />
+                <ProfileRow label={copy.organization} value={finalProfile.name} />
+                <ProfileRow label={copy.country} value={finalProfile.country} />
+                <ProfileRow label={copy.preferredLanguage} value={languageOptionLabel(language, finalProfile.language)} />
+                <ProfileRow label={copy.regions} value={localizedList(finalProfile.regions, language)} />
+                <ProfileRow label={copy.topics} value={localizedList(finalProfile.topics, language)} />
                 {finalProfile.fundingPrefs?.enabled && (
-                  <ProfileRow label="Funding interests" value={[...finalProfile.fundingPrefs.chips, ...finalProfile.fundingPrefs.regions].join(", ")} />
+                  <ProfileRow label={copy.fundingInterests} value={localizedList([...finalProfile.fundingPrefs.chips, ...finalProfile.fundingPrefs.regions], language)} />
                 )}
-                <ProfileRow label="Recommended signal types" value={(finalProfile.sources ?? []).join(", ")} />
+                <ProfileRow label={copy.recommendedSignalTypes} value={localizedList(finalProfile.sources ?? [], language)} />
               </div>
               <div className="flex flex-wrap gap-2">
                 <Button variant="outline" onClick={() => setStep(0)}>
-                  <Edit className="h-4 w-4" /> Edit profile
+                  <Edit className="h-4 w-4" /> {copy.editProfile}
                 </Button>
                 <Button
                   onClick={() => {
@@ -443,16 +456,16 @@ function Onboarding() {
                     navigate({ to: "/app/inbox" });
                   }}
                 >
-                  <Check className="h-4 w-4" /> Create my Signal Inbox
+                  <Check className="h-4 w-4" /> {copy.createSignalInbox}
                 </Button>
               </div>
             </div>
           )}
 
           <div className="mt-8 flex justify-between border-t border-border pt-5">
-            <Button variant="ghost" disabled={step === 0} onClick={() => setStep((s) => s - 1)}>Back</Button>
+            <Button variant="ghost" disabled={step === 0} onClick={() => setStep((s) => s - 1)}>{copy.back}</Button>
             {step < STEPS.length - 1 ? (
-              <Button onClick={() => setStep((s) => s + 1)}>Continue</Button>
+              <Button onClick={() => setStep((s) => s + 1)}>{copy.continue}</Button>
             ) : null}
           </div>
         </div>
@@ -461,11 +474,11 @@ function Onboarding() {
   );
 }
 
-function Stepper({ step }: { step: number }) {
+function Stepper({ step, labels }: { step: number; labels: readonly string[] }) {
   return (
     <div className="flex items-center gap-2">
-      {STEPS.map((label, i) => (
-        <div key={label} className="flex flex-1 items-center gap-2">
+      {STEPS.map((key, i) => (
+        <div key={key} className="flex flex-1 items-center gap-2">
           <div
             className={`flex h-7 w-7 items-center justify-center rounded-full border text-xs font-medium ${
               i <= step ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card text-muted-foreground"
@@ -474,7 +487,7 @@ function Stepper({ step }: { step: number }) {
             {i + 1}
           </div>
           <span className={`hidden text-xs font-medium sm:block ${i <= step ? "text-foreground" : "text-muted-foreground"}`}>
-            {label}
+            {labels[i]}
           </span>
           {i < STEPS.length - 1 && <div className={`h-px flex-1 ${i < step ? "bg-primary" : "bg-border"}`} />}
         </div>
@@ -534,6 +547,180 @@ function ProfileRow({ label, value }: { label: string; value: string }) {
       <div className="font-medium text-foreground">{value}</div>
     </div>
   );
+}
+
+function localizedList(items: string[], language: string): string {
+  return items.length ? items.map((item) => knownLabel(language, item)).join(", ") : "-";
+}
+
+function onboardingCopy(language: string) {
+  const locale = localeFromLanguage(language);
+  if (locale === "fr") {
+    return {
+      aiGeneratedPreview: "Apercu du profil genere par IA",
+      applicantType: "Type de candidat",
+      back: "Retour",
+      basicsSubtitle: "Dites-nous qui vous etes. Cela determine les signaux que vous verrez.",
+      basicsTitle: "Informations de base sur l'organisation",
+      cityRegion: "Ville / region",
+      confirmSubtitle: "Voici ce qu'Impact Atlas utilisera pour router les signaux vers vous.",
+      confirmTitle: "Votre profil de pertinence IA",
+      continue: "Continuer",
+      country: "Pays",
+      countryPlaceholder: "ex. Burundi",
+      createSignalInbox: "Creer ma boite de signaux",
+      deadlineUrgency: "Preference d'urgence des echeances",
+      descriptionLabel: "Description courte de l'organisation",
+      detectedFocusAreas: "Axes detectes",
+      detectedRegions: "Regions detectees",
+      editProfile: "Modifier le profil",
+      fundingInterests: "Interets de financement",
+      fundingRegions: "Regions de financement",
+      fundingSubtitle: "Afficher seulement les financements adaptes a votre eligibilite et capacite.",
+      fundingTags: "Tags de financement",
+      fundingTitle: "Preferences de financement",
+      generateAiTopicProfile: "Generer le profil thematique IA",
+      keywordsHint: "Separe par des virgules. Aide l'IA a capter les termes locaux.",
+      keywordsLabel: "Ajouter vos propres mots-cles ou themes",
+      keywordsPlaceholder:
+        "Burundi, Bujumbura, Gitega, education des filles, financement BMZ, petites subventions",
+      maximumFundingAmount: "Montant maximum",
+      minimumFundingAmount: "Montant minimum",
+      organization: "Organisation",
+      organizationName: "Nom de l'organisation",
+      preferredLanguage: "Langue preferee",
+      receiveFunding: "Recevoir des opportunites de financement",
+      receiveFundingHint: "Recevez des appels a financement adaptes dans votre boite.",
+      recommendedSignalTypes: "Types de signaux recommandes",
+      refineLater: "Vous pourrez affiner cela dans les prochaines etapes.",
+      regions: "Regions",
+      sourcesNoteLabel:
+        "Collez les flux RSS, mots-cles Google Alert ou sites que vous suivez deja (facultatif)",
+      sourcesSubtitle: "Mixez les sources. Vous pourrez en ajouter plus tard.",
+      sourcesTitle: "Quelles sources devons-nous surveiller ?",
+      stepCounter: (current: number, total: number) => `Etape ${current} sur ${total}`,
+      stepLabels: ["Bases", "Themes", "Financement", "Sources", "Confirmation"],
+      suggestedExtraKeywords: "Mots-cles supplementaires suggeres",
+      topics: "Themes",
+      topicsForFunding: "Themes pour le financement",
+      topicsSubtitle: "Selectionnez tout ce qui correspond. Vous pourrez changer cela plus tard.",
+      topicsTitle: "Quels themes comptent pour votre travail ?",
+      useDescriptionSuggestions: "Utiliser les suggestions de la description",
+      websiteHint:
+        "Si vous ajoutez votre site, l'IA comprendra mieux votre mission, vos regions, vos themes et vos besoins de financement.",
+      websiteLabel: "URL du site web (facultatif)",
+    };
+  }
+  if (locale === "de") {
+    return {
+      aiGeneratedPreview: "KI-generierte Profilvorschau",
+      applicantType: "Antragstellertyp",
+      back: "Zurueck",
+      basicsSubtitle: "Sagen Sie uns, wer Sie sind. Das bestimmt, welche Signale Sie sehen.",
+      basicsTitle: "Grunddaten der Organisation",
+      cityRegion: "Stadt / Region",
+      confirmSubtitle: "Das nutzt Impact Atlas, um Signale an Sie weiterzuleiten.",
+      confirmTitle: "Ihr KI-Relevanzprofil",
+      continue: "Weiter",
+      country: "Land",
+      countryPlaceholder: "z. B. Burundi",
+      createSignalInbox: "Mein Signal-Postfach erstellen",
+      deadlineUrgency: "Praeferenz fuer Frist-Dringlichkeit",
+      descriptionLabel: "Kurze Organisationsbeschreibung",
+      detectedFocusAreas: "Erkannte Schwerpunkte",
+      detectedRegions: "Erkannte Regionen",
+      editProfile: "Profil bearbeiten",
+      fundingInterests: "Foerderinteressen",
+      fundingRegions: "Foerderregionen",
+      fundingSubtitle: "Nur Foerderungen anzeigen, die zu Ihrer Eignung und Kapazitaet passen.",
+      fundingTags: "Foerder-Tags",
+      fundingTitle: "Foerderpraeferenzen",
+      generateAiTopicProfile: "KI-Themenprofil generieren",
+      keywordsHint: "Durch Kommas getrennt. Hilft der KI, lokale Begriffe zu erkennen.",
+      keywordsLabel: "Eigene Stichwoerter oder Themen hinzufuegen",
+      keywordsPlaceholder:
+        "Burundi, Bujumbura, Gitega, Maedchenbildung, BMZ-Foerderung, kleine Zuschuesse",
+      maximumFundingAmount: "Hoechstbetrag",
+      minimumFundingAmount: "Mindestbetrag",
+      organization: "Organisation",
+      organizationName: "Name der Organisation",
+      preferredLanguage: "Bevorzugte Sprache",
+      receiveFunding: "Foerdermoeglichkeiten erhalten",
+      receiveFundingHint: "Passende Foerderaufrufe im Postfach erhalten.",
+      recommendedSignalTypes: "Empfohlene Signaltypen",
+      refineLater: "Sie koennen dies in den naechsten Schritten verfeinern.",
+      regions: "Regionen",
+      sourcesNoteLabel:
+        "RSS-Feeds, Google-Alert-Stichwoerter oder Websites einfuegen, die Sie bereits beobachten (optional)",
+      sourcesSubtitle: "Kombinieren Sie Quellen. Sie koennen spaeter mehr hinzufuegen.",
+      sourcesTitle: "Welche Quellen sollen wir beobachten?",
+      stepCounter: (current: number, total: number) => `Schritt ${current} von ${total}`,
+      stepLabels: ["Basis", "Themen", "Foerderung", "Quellen", "Bestaetigen"],
+      suggestedExtraKeywords: "Vorgeschlagene zusaetzliche Stichwoerter",
+      topics: "Themen",
+      topicsForFunding: "Themen fuer Foerderung",
+      topicsSubtitle: "Waehlen Sie alles aus, was passt. Sie koennen dies spaeter aendern.",
+      topicsTitle: "Welche Themen sind fuer Ihre Arbeit wichtig?",
+      useDescriptionSuggestions: "Vorschlaege aus der Beschreibung nutzen",
+      websiteHint:
+        "Wenn Sie Ihre Website hinzufuegen, versteht die KI Ihre Mission, Regionen, Themen und Foerderbedarfe besser.",
+      websiteLabel: "Website-URL (optional)",
+    };
+  }
+  return {
+    aiGeneratedPreview: "AI-generated profile preview",
+    applicantType: "Applicant type",
+    back: "Back",
+    basicsSubtitle: "Tell us who you are. This shapes the signals you'll see.",
+    basicsTitle: "Basic organization information",
+    cityRegion: "City / region",
+    confirmSubtitle: "This is what Impact Atlas will use to route signals to you.",
+    confirmTitle: "Your AI Relevance Profile",
+    continue: "Continue",
+    country: "Country",
+    countryPlaceholder: "e.g. Burundi",
+    createSignalInbox: "Create my Signal Inbox",
+    deadlineUrgency: "Deadline urgency preference",
+    descriptionLabel: "Short organization description",
+    detectedFocusAreas: "Detected focus areas",
+    detectedRegions: "Detected regions",
+    editProfile: "Edit profile",
+    fundingInterests: "Funding interests",
+    fundingRegions: "Funding regions",
+    fundingSubtitle: "Only show funding that fits your eligibility and capacity.",
+    fundingTags: "Funding tags",
+    fundingTitle: "Funding preferences",
+    generateAiTopicProfile: "Generate AI topic profile",
+    keywordsHint: "Comma-separated. Helps AI catch local terms.",
+    keywordsLabel: "Add your own keywords or topics",
+    keywordsPlaceholder:
+      "Burundi, Bujumbura, Gitega, girls' education, BMZ funding, small grants",
+    maximumFundingAmount: "Maximum funding amount",
+    minimumFundingAmount: "Minimum funding amount",
+    organization: "Organization",
+    organizationName: "Organization name",
+    preferredLanguage: "Preferred language",
+    receiveFunding: "Receive funding opportunities",
+    receiveFundingHint: "Get matched funding calls in your inbox.",
+    recommendedSignalTypes: "Recommended signal types",
+    refineLater: "You can refine this in the next steps.",
+    regions: "Regions",
+    sourcesNoteLabel:
+      "Paste RSS feeds, Google Alert keywords, or websites you already monitor (optional)",
+    sourcesSubtitle: "Mix and match. You can add more later.",
+    sourcesTitle: "What sources should we monitor?",
+    stepCounter: (current: number, total: number) => `Step ${current} of ${total}`,
+    stepLabels: ["Basics", "Topics", "Funding", "Sources", "Confirm"],
+    suggestedExtraKeywords: "Suggested extra keywords",
+    topics: "Topics",
+    topicsForFunding: "Topics for funding",
+    topicsSubtitle: "Pick everything that fits. You can change this later.",
+    topicsTitle: "What topics matter to your work?",
+    useDescriptionSuggestions: "Use description suggestions",
+    websiteHint:
+      "If you add your website, AI can better understand your mission, regions, topics, and funding needs.",
+    websiteLabel: "Website URL (optional)",
+  };
 }
 
 interface SuggestionInput {

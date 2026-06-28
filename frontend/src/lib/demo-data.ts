@@ -374,4 +374,4 @@ export const FUNDING_CHIPS = [
   "German applicant eligible",
 ];
 
-export const LANGUAGE_OPTIONS = ["German", "English", "French", "Kirundi", "Swahili", "Other"];
+export const LANGUAGE_OPTIONS = ["German", "English", "French"];

@@ -4,7 +4,7 @@ import { ArrowLeft, Bookmark, Languages, Send, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAppState } from "@/lib/app-state";
 import { toast } from "sonner";
-import { formatChatTime } from "@/lib/utils";
+import { knownLabel, localeFromLanguage, translate } from "@/lib/i18n";
 
 export const Route = createFileRoute("/app/chat")({
   head: () => ({ meta: [{ title: "Peer Chat - Impact Atlas" }] }),
@@ -13,6 +13,8 @@ export const Route = createFileRoute("/app/chat")({
 
 function ChatPage() {
   const { conversations, sendMessage, saveInsight, profile } = useAppState();
+  const language = profile?.language;
+  const copy = chatCopy(language);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const [showOriginal, setShowOriginal] = useState<Record<string, boolean>>({});
@@ -24,9 +26,11 @@ function ChatPage() {
     return (
       <div className="mx-auto max-w-3xl px-5 py-8">
         <div className="mb-5">
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Peer Chat</h1>
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+            {translate(language, "peerChat")}
+          </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Conversations with peer NGOs, translated between your language and theirs.
+            {copy.subtitle}
           </p>
         </div>
         <div className="overflow-hidden rounded-2xl border border-border bg-card">
@@ -48,12 +52,13 @@ function ChatPage() {
                     </div>
                     {last && (
                       <span className="text-[10px] text-muted-foreground">
-                        {formatChatTime(last.sentAt) || last.timestamp}
+                        {formatChatTimeLocalized(last.sentAt, language) || last.timestamp}
                       </span>
                     )}
                   </div>
                   <div className="mt-0.5 text-[11px] text-muted-foreground">
-                    {conversation.country} / {conversation.sharedTopics.slice(0, 2).join(", ")}
+                    {conversation.country} /{" "}
+                    {conversation.sharedTopics.slice(0, 2).map((topic) => knownLabel(language, topic)).join(", ")}
                   </div>
                   {last && (
                     <div className="mt-1 line-clamp-1 text-xs text-foreground/70">
@@ -83,18 +88,18 @@ function ChatPage() {
           <div>
             <div className="text-sm font-semibold text-foreground">{active.orgName}</div>
             <div className="text-xs text-muted-foreground">
-              {active.country} / {active.sharedTopics.join(", ")}
+              {active.country} / {active.sharedTopics.map((topic) => knownLabel(language, topic)).join(", ")}
             </div>
           </div>
           <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
-            <Languages className="h-3 w-3" /> {active.translationStatus}
+            <Languages className="h-3 w-3" /> {localizedTranslationStatus(active.translationStatus, language)}
           </span>
         </header>
 
         <div className="flex-1 space-y-4 overflow-auto px-4 py-5 md:px-5">
           {active.messages.length === 0 && (
             <div className="rounded-xl border border-dashed border-border bg-secondary/40 p-6 text-center text-sm text-muted-foreground">
-              No messages yet. Start the conversation and Impact Atlas will translate it.
+              {copy.empty}
             </div>
           )}
           {active.messages.map((message) => {
@@ -111,19 +116,19 @@ function ChatPage() {
                 ? message.originalText
                 : message.translatedText;
             const translationLabel = translationFailed
-              ? `Sent in ${message.originalLang} / translation unavailable`
+              ? `${copy.sentIn} ${message.originalLang} / ${copy.translationUnavailable}`
               : mine
-              ? `Sent in ${message.originalLang} / translated to ${message.targetLang}`
-              : `Auto-translated ${message.originalLang} -> ${message.targetLang}`;
+              ? `${copy.sentIn} ${message.originalLang} / ${copy.translatedTo} ${message.targetLang}`
+              : `${copy.autoTranslated} ${message.originalLang} -> ${message.targetLang}`;
             const toggleLabel = translationFailed
               ? ""
               : mine
               ? toggled
-                ? "Show my message"
-                : "Show recipient translation"
+                ? copy.showMyMessage
+                : copy.showRecipientTranslation
               : toggled
-                ? "Show translation"
-                : "Show original";
+                ? copy.showTranslation
+                : copy.showOriginal;
 
             return (
               <div key={message.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
@@ -135,8 +140,8 @@ function ChatPage() {
                   }`}
                 >
                   <div className="mb-1 flex items-center justify-between gap-3 text-[10px] opacity-80">
-                    <span>{mine ? profile?.name ?? "You" : active.orgName}</span>
-                    <span>{formatChatTime(message.sentAt) || message.timestamp}</span>
+                    <span>{mine ? profile?.name ?? copy.you : active.orgName}</span>
+                    <span>{formatChatTimeLocalized(message.sentAt, language) || message.timestamp}</span>
                   </div>
                   <div className="text-sm leading-relaxed">{visibleText}</div>
                   <div className="mt-2 flex items-center justify-between gap-2 text-[10px] opacity-80">
@@ -167,7 +172,7 @@ function ChatPage() {
           <textarea
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
-            placeholder="Write in your language. Impact Atlas will translate it for the recipient."
+            placeholder={copy.placeholder}
             rows={2}
             className="w-full resize-none rounded-xl border border-border bg-background p-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
           />
@@ -183,30 +188,30 @@ function ChatPage() {
                   await sendMessage(active.id, text, profile?.language ?? "auto");
                   setDraft("");
                 } catch (error) {
-                  toast.error(error instanceof Error ? error.message : "Message translation failed");
+                  toast.error(error instanceof Error ? error.message : copy.messageFailed);
                 } finally {
                   setIsSending(false);
                 }
               }}
             >
-              <Send className="h-4 w-4" /> {isSending ? "Sending..." : "Send"}
+              <Send className="h-4 w-4" /> {isSending ? copy.sending : copy.send}
             </Button>
             <Button
               size="sm"
               variant="outline"
               onClick={() => setDraft(draftReply(profile?.language))}
             >
-              <Sparkles className="h-4 w-4" /> AI draft reply
+              <Sparkles className="h-4 w-4" /> {copy.aiDraftReply}
             </Button>
             <Button
               size="sm"
               variant="ghost"
               onClick={() => {
-                saveInsight("Saved insight from conversation with " + active.orgName);
-                toast.success("Saved to Tags");
+                saveInsight(`${copy.savedInsightPrefix} ${active.orgName}`);
+                toast.success(copy.savedToTags);
               }}
             >
-              <Bookmark className="h-4 w-4" /> Save insight to Tags
+              <Bookmark className="h-4 w-4" /> {copy.saveInsightToTags}
             </Button>
           </div>
         </footer>
@@ -224,4 +229,110 @@ function draftReply(language: string | undefined): string {
     return "Bonjour, merci pour vos notes. Avez-vous de l'experience avec des demandeurs eligibles ou des partenaires locaux ?";
   }
   return "Hello, thank you for your notes. Do you have experience with eligible applicants or local partners?";
+}
+
+function chatCopy(language: string | undefined) {
+  const locale = localeFromLanguage(language);
+  if (locale === "fr") {
+    return {
+      aiDraftReply: "Brouillon IA",
+      autoTranslated: "Traduit automatiquement",
+      empty: "Aucun message pour l'instant. Lancez la conversation et Impact Atlas traduira.",
+      messageFailed: "La traduction du message a echoue",
+      placeholder: "Ecrivez dans votre langue. Impact Atlas traduira pour le destinataire.",
+      savedInsightPrefix: "Note sauvegardee depuis la conversation avec",
+      savedToTags: "Sauvegarde dans Tags",
+      saveInsightToTags: "Sauvegarder dans Tags",
+      send: "Envoyer",
+      sending: "Envoi...",
+      sentIn: "Envoye en",
+      showMyMessage: "Afficher mon message",
+      showOriginal: "Afficher l'original",
+      showRecipientTranslation: "Afficher la traduction destinataire",
+      showTranslation: "Afficher la traduction",
+      subtitle: "Conversations avec des ONG pairs, traduites entre votre langue et la leur.",
+      translatedTo: "traduit vers",
+      translationUnavailable: "traduction indisponible",
+      you: "Vous",
+    };
+  }
+  if (locale === "de") {
+    return {
+      aiDraftReply: "KI-Antwortentwurf",
+      autoTranslated: "Automatisch uebersetzt",
+      empty: "Noch keine Nachrichten. Starten Sie die Unterhaltung und Impact Atlas uebersetzt.",
+      messageFailed: "Nachrichtenuebersetzung fehlgeschlagen",
+      placeholder: "Schreiben Sie in Ihrer Sprache. Impact Atlas uebersetzt fuer den Empfaenger.",
+      savedInsightPrefix: "Gespeicherte Notiz aus der Unterhaltung mit",
+      savedToTags: "In Tags gespeichert",
+      saveInsightToTags: "In Tags speichern",
+      send: "Senden",
+      sending: "Sendet...",
+      sentIn: "Gesendet in",
+      showMyMessage: "Meine Nachricht anzeigen",
+      showOriginal: "Original anzeigen",
+      showRecipientTranslation: "Empfaenger-Uebersetzung anzeigen",
+      showTranslation: "Uebersetzung anzeigen",
+      subtitle: "Unterhaltungen mit Peer-NGOs, uebersetzt zwischen Ihrer Sprache und ihrer.",
+      translatedTo: "uebersetzt nach",
+      translationUnavailable: "Uebersetzung nicht verfuegbar",
+      you: "Sie",
+    };
+  }
+  return {
+    aiDraftReply: "AI draft reply",
+    autoTranslated: "Auto-translated",
+    empty: "No messages yet. Start the conversation and Impact Atlas will translate it.",
+    messageFailed: "Message translation failed",
+    placeholder: "Write in your language. Impact Atlas will translate it for the recipient.",
+    savedInsightPrefix: "Saved insight from conversation with",
+    savedToTags: "Saved to Tags",
+    saveInsightToTags: "Save insight to Tags",
+    send: "Send",
+    sending: "Sending...",
+    sentIn: "Sent in",
+    showMyMessage: "Show my message",
+    showOriginal: "Show original",
+    showRecipientTranslation: "Show recipient translation",
+    showTranslation: "Show translation",
+    subtitle: "Conversations with peer NGOs, translated between your language and theirs.",
+    translatedTo: "translated to",
+    translationUnavailable: "translation unavailable",
+    you: "You",
+  };
+}
+
+function localizedTranslationStatus(status: string, language: string | undefined): string {
+  const codes = status.match(/\b[A-Z]{2}\b/g) ?? [];
+  const locale = localeFromLanguage(language);
+  if (codes.length === 1) {
+    if (locale === "fr") return `Meme langue (${codes[0]})`;
+    if (locale === "de") return `Gleiche Sprache (${codes[0]})`;
+    return `Same language (${codes[0]})`;
+  }
+  if (codes.length >= 2) {
+    if (locale === "fr") return `Traduction automatique ${codes[0]} <-> ${codes[1]}`;
+    if (locale === "de") return `Automatische Uebersetzung ${codes[0]} <-> ${codes[1]}`;
+    return `Auto-translating ${codes[0]} <-> ${codes[1]}`;
+  }
+  return status;
+}
+
+function formatChatTimeLocalized(iso: string | undefined, language: string | undefined): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  const diffMin = Math.floor((Date.now() - d.getTime()) / 60000);
+  const locale = localeFromLanguage(language);
+  if (diffMin < 1) {
+    if (locale === "fr") return "A l'instant";
+    if (locale === "de") return "Gerade eben";
+    return "Just now";
+  }
+  if (diffMin < 60) {
+    if (locale === "fr") return `il y a ${diffMin} min`;
+    if (locale === "de") return `vor ${diffMin} Min.`;
+    return `${diffMin} min ago`;
+  }
+  return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }

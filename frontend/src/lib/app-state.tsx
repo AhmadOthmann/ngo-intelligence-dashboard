@@ -9,6 +9,7 @@ import {
 } from "react";
 import { getItems, ingestRss, itemToSignal, translateText, type IngestResult } from "./api";
 import { BURUNDI_KIDS, DEMO_CONVERSATIONS, DEMO_SIGNALS } from "./demo-data";
+import { localeFromLanguage } from "./i18n";
 import type {
   ChatMessage,
   Conversation,
@@ -219,17 +220,18 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   }, [conversations]);
 
   const saveInsight = useCallback((text: string) => {
+    const copy = peerInsightCopy(profile?.language);
     const s: Signal = {
       id: `insight-${Date.now()}`,
       priority: "relevant",
       type: "peer",
-      title: "Peer insight saved from Peer Chat",
-      source: "Peer Chat",
+      title: copy.title,
+      source: copy.source,
       date: new Date().toISOString().slice(0, 10),
       originalLanguage: "auto",
       summary: text,
-      whyRecommended: "Saved by you from a peer conversation.",
-      suggestedAction: "Reference in your funding pipeline.",
+      whyRecommended: copy.whyRecommended,
+      suggestedAction: copy.suggestedAction,
     };
     setSaved((prev) => [
       {
@@ -240,7 +242,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       },
       ...prev,
     ]);
-  }, []);
+  }, [profile?.language]);
 
   const value = useMemo<AppState>(
     () => ({
@@ -306,6 +308,32 @@ function languageName(language: string): string {
   if (code === "DE") return "German";
   if (code === "FR") return "French";
   return "English";
+}
+
+function peerInsightCopy(language: string | undefined) {
+  const locale = localeFromLanguage(language);
+  if (locale === "fr") {
+    return {
+      source: "Chat pairs",
+      suggestedAction: "Utiliser dans votre pipeline de financement.",
+      title: "Note de pair sauvegardee depuis le chat",
+      whyRecommended: "Sauvegarde par vous depuis une conversation avec un pair.",
+    };
+  }
+  if (locale === "de") {
+    return {
+      source: "Peer-Chat",
+      suggestedAction: "In Ihrer Foerderpipeline verwenden.",
+      title: "Peer-Notiz aus dem Chat gespeichert",
+      whyRecommended: "Von Ihnen aus einer Peer-Unterhaltung gespeichert.",
+    };
+  }
+  return {
+    source: "Peer Chat",
+    suggestedAction: "Reference in your funding pipeline.",
+    title: "Peer insight saved from Peer Chat",
+    whyRecommended: "Saved by you from a peer conversation.",
+  };
 }
 
 function cleanTranslationText(text: string): string {
