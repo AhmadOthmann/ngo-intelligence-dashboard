@@ -204,9 +204,7 @@ The scene must visually match the same Emma, David, Impact Atlas interface, ligh
 # ---------------------------------------------------------------------------
 
 def make_client() -> OpenAI:
-    OPENAI_API_KEY = "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"
-
-    return OpenAI(api_key = OPENAI_API_KEY)
+    return OpenAI()
 
 
 def create_video(client: OpenAI, prompt: str):
