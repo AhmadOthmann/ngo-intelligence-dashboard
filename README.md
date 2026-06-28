@@ -100,10 +100,27 @@ In AWS Amplify:
 1. Create a new Amplify Hosting app from GitHub.
 2. Choose this repository and the branch you want to deploy.
 3. Set the app root to `frontend` if Amplify does not detect it automatically.
-4. Add this frontend environment variable:
+4. Add this frontend environment variable so browser requests stay on the same
+   deployed Amplify domain:
 
 ```text
-VITE_API_BASE_URL=https://your-backend-api-domain
+VITE_API_BASE_URL=/api
+```
+
+5. After the backend has a public HTTPS URL, add an Amplify reverse proxy
+   rewrite:
+
+```text
+Source address:      /api/<*>
+Target address:      https://your-backend-api-domain/<*>
+Type:                200 (Rewrite)
+```
+
+Optional fallback: the frontend server can also proxy `/api` when this
+server-side environment variable is present:
+
+```text
+BACKEND_ORIGIN=https://your-backend-api-domain
 ```
 
 Amplify will run:
@@ -115,13 +132,40 @@ NITRO_PRESET=aws-amplify npm run build
 
 and publish `.amplify-hosting`.
 
-The FastAPI backend is not deployed by Amplify. Deploy it separately, for
-example with AWS Elastic Beanstalk, ECS/Fargate, or EC2. After the backend has a
-public HTTPS URL, add the Amplify domain to the backend CORS list:
+The deployed frontend calls `/api/...` on the same Amplify URL. The Amplify
+rewrite or server proxy forwards those requests to the backend, so the submitted
+link does not change.
+
+## AWS Backend Deployment
+
+The FastAPI backend is not deployed by Amplify. The repository includes a
+root-level `Dockerfile` for deploying the backend on AWS, for example with
+Elastic Beanstalk Docker, ECS/Fargate, or another container service.
+
+Backend container command:
+
+```bash
+uvicorn backend.main:app --host 0.0.0.0 --port ${PORT:-8000}
+```
+
+Recommended backend environment variables:
 
 ```text
-CORS_ORIGINS=https://your-amplify-domain.amplifyapp.com
+DATABASE_PATH=/tmp/items.db
+AI_PROVIDER=openai
+OPENAI_API_KEY=replace_with_your_key
+OPENAI_MODEL=gpt-5.4-mini
 ```
+
+If the frontend calls the backend directly instead of through `/api`, also set:
+
+```text
+CORS_ORIGINS=https://legendary-mvp.d1bibf1j27fme3.amplifyapp.com
+```
+
+For the current Amplify deployment, keep the public URL unchanged by setting
+`VITE_API_BASE_URL=/api`, creating the `/api/<*>` reverse proxy rewrite to the
+deployed backend URL, then redeploying the Amplify app.
 
 ## Demo Flow
 

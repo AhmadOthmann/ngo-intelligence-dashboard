@@ -16,7 +16,7 @@ function resolveApiBaseUrl(): string {
     }
   }
 
-  return "http://127.0.0.1:8000";
+  return "/api";
 }
 
 function isPrivateNetworkHost(host: string): boolean {

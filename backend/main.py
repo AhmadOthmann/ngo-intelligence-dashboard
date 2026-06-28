@@ -114,12 +114,13 @@ ALLOWED_ORIGINS = [
     "http://localhost:8081",
     "http://127.0.0.1:8081",
 ]
-LOCAL_NETWORK_ORIGIN_REGEX = (
+ALLOWED_ORIGIN_REGEX = (
     r"^https?://("
     r"localhost|127\.0\.0\.1|"
     r"10(?:\.\d{1,3}){3}|"
     r"192\.168(?:\.\d{1,3}){2}|"
-    r"172\.(?:1[6-9]|2\d|3[0-1])(?:\.\d{1,3}){2}"
+    r"172\.(?:1[6-9]|2\d|3[0-1])(?:\.\d{1,3}){2}|"
+    r"[^/]+\.amplifyapp\.com"
     r")(?::\d+)?$"
 )
 
@@ -132,7 +133,7 @@ if extra_origins:
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
-    allow_origin_regex=LOCAL_NETWORK_ORIGIN_REGEX,
+    allow_origin_regex=ALLOWED_ORIGIN_REGEX,
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["Content-Type"],
 )
