@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Bookmark,
   ChevronDown,
@@ -54,8 +54,66 @@ export function SignalCard({ signal }: { signal: Signal }) {
     signal.translatedLanguage ?? "",
   );
   const [isTranslating, setIsTranslating] = useState(false);
+  const [isAutoTranslating, setIsAutoTranslating] = useState(false);
   const displaySignal = translatedSignal ?? signal;
   const detailPoints = getDetailPoints(displaySignal);
+  const sourceSignature = useMemo(
+    () =>
+      [
+        signal.id,
+        signal.title,
+        signal.summary,
+        signal.longSummary ?? "",
+        signal.originalLanguage,
+        signal.whyRecommended,
+        signal.suggestedAction,
+        profile?.language ?? "",
+      ].join("|"),
+    [
+      signal.id,
+      signal.title,
+      signal.summary,
+      signal.longSummary,
+      signal.originalLanguage,
+      signal.whyRecommended,
+      signal.suggestedAction,
+      profile?.language,
+    ],
+  );
+
+  useEffect(() => {
+    const preferredLanguage = normalizeTargetLanguage(profile?.language);
+    setTargetLanguage(preferredLanguage);
+    setTranslatedSignal(null);
+    setTranslatedLanguage(signal.translatedLanguage ?? "");
+
+    if (!shouldAutoTranslate(signal, preferredLanguage)) {
+      setIsAutoTranslating(false);
+      return;
+    }
+
+    let cancelled = false;
+    setIsAutoTranslating(true);
+    translateSignalContent(signal, preferredLanguage)
+      .then((translated) => {
+        if (cancelled) return;
+        setTranslatedSignal(translated);
+        setTranslatedLanguage(preferredLanguage);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setTranslatedSignal(null);
+          setTranslatedLanguage("");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setIsAutoTranslating(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [sourceSignature]);
 
   async function handleTranslate() {
     setIsTranslating(true);
@@ -78,7 +136,12 @@ export function SignalCard({ signal }: { signal: Signal }) {
         <span className="text-xs text-muted-foreground">{displaySignal.source}</span>
         <span className="text-xs text-muted-foreground">/</span>
         <span className="text-xs text-muted-foreground">{displaySignal.date}</span>
-        {translatedSignal && translatedLanguage && (
+        {isAutoTranslating && (
+          <span className="rounded-full bg-secondary px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+            {translate(language, "translation")} {targetLanguage}...
+          </span>
+        )}
+        {!isAutoTranslating && translatedSignal && translatedLanguage && (
           <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
             {translate(language, "translation")} {translatedLanguage}
           </span>
@@ -206,9 +269,9 @@ export function SignalCard({ signal }: { signal: Signal }) {
                 size="sm"
                 variant="outline"
                 onClick={() => void handleTranslate()}
-                disabled={isTranslating}
+                disabled={isTranslating || isAutoTranslating}
               >
-                {isTranslating ? (
+                {isTranslating || isAutoTranslating ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
                   <Languages className="h-4 w-4" />
@@ -324,83 +387,157 @@ function normalizeTargetLanguage(language: string | undefined): string {
   return LANGUAGE_OPTIONS.find((option) => option.toLowerCase() === language?.toLowerCase()) ?? "German";
 }
 
-async function translateSignalContent(signal: Signal, targetLanguage: string): Promise<Signal> {
-  let attempted = 0;
-  let translated = 0;
+function shouldAutoTranslate(signal: Signal, targetLanguage: string): boolean {
+  const sourceLanguage = supportedLanguageName(signal.originalLanguage);
+  const target = supportedLanguageName(targetLanguage);
+  if (!target) return false;
+  if (!sourceLanguage) return true;
+  return sourceLanguage !== target;
+}
 
-  async function field(value: string): Promise<string>;
-  async function field(value: string | undefined): Promise<string | undefined>;
-  async function field(value: string | undefined): Promise<string | undefined> {
-    if (!value?.trim()) return value;
-    attempted += 1;
-    try {
-      const result = await translateText(value, targetLanguage);
-      const cleaned = cleanTranslationText(result.translated_text);
-      if (!cleaned) return value;
-      translated += 1;
-      return cleaned;
-    } catch {
-      return value;
-    }
+function supportedLanguageName(language: string | undefined): string {
+  const normalized = language?.trim().toLowerCase() ?? "";
+  if (normalized === "en" || normalized.startsWith("english")) return "English";
+  if (normalized === "fr" || normalized.startsWith("french") || normalized.startsWith("franc")) {
+    return "French";
   }
+  if (
+    normalized === "de" ||
+    normalized.startsWith("german") ||
+    normalized.startsWith("deutsch")
+  ) {
+    return "German";
+  }
+  return "";
+}
 
-  const [
-    title,
-    summary,
-    longSummary,
-    whyRecommended,
-    suggestedAction,
-    source,
-    date,
-  ] = await Promise.all([
-    field(signal.title),
-    field(signal.summary),
-    field(signal.longSummary),
-    field(signal.whyRecommended),
-    field(signal.suggestedAction),
-    field(signal.source),
-    field(signal.date),
-  ]);
+async function translateSignalContent(signal: Signal, targetLanguage: string): Promise<Signal> {
+  const segments = collectSignalSegments(signal);
+  const translated = await translateSegments(segments, targetLanguage);
 
-  const keyPoints = signal.keyPoints
-    ? await Promise.all(signal.keyPoints.map((point) => field(point)))
-    : undefined;
-  const peerActivity = signal.peerActivity
-    ? await Promise.all(
-        signal.peerActivity.map(async (activity) => ({
-          ...activity,
-          text: await field(activity.text),
-        })),
-      )
-    : undefined;
-  const funding = signal.funding
-    ? {
-        ...signal.funding,
-        deadline: await field(signal.funding.deadline),
-        amount: await field(signal.funding.amount),
-        funder: await field(signal.funding.funder),
-        eligibility: await field(signal.funding.eligibility),
-      }
-    : undefined;
-
-  if (attempted > 0 && translated === 0) {
+  if (segments.length > 0 && translated.size === 0) {
     throw new Error(translate(targetLanguage, "translationProviderEmpty"));
   }
 
   return {
     ...signal,
-    title,
-    source,
-    date,
-    summary,
-    longSummary,
-    keyPoints,
-    whyRecommended,
-    peerActivity,
-    suggestedAction,
-    funding,
+    title: segmentValue(translated, "title", signal.title),
+    source: segmentValue(translated, "source", signal.source),
+    date: segmentValue(translated, "date", signal.date),
+    summary: segmentValue(translated, "summary", signal.summary),
+    longSummary: segmentValue(translated, "longSummary", signal.longSummary),
+    keyPoints: signal.keyPoints?.map((point, index) =>
+      segmentValue(translated, `keyPoint.${index}`, point),
+    ),
+    whyRecommended: segmentValue(translated, "whyRecommended", signal.whyRecommended),
+    peerActivity: signal.peerActivity?.map((activity, index) => ({
+      ...activity,
+      text: segmentValue(translated, `peerActivity.${index}`, activity.text),
+    })),
+    suggestedAction: segmentValue(translated, "suggestedAction", signal.suggestedAction),
+    funding: signal.funding
+      ? {
+          ...signal.funding,
+          deadline: segmentValue(translated, "funding.deadline", signal.funding.deadline),
+          amount: segmentValue(translated, "funding.amount", signal.funding.amount),
+          funder: segmentValue(translated, "funding.funder", signal.funding.funder),
+          eligibility: segmentValue(
+            translated,
+            "funding.eligibility",
+            signal.funding.eligibility,
+          ),
+        }
+      : undefined,
     translatedLanguage: targetLanguage,
   };
+}
+
+function collectSignalSegments(signal: Signal): Array<{ key: string; value: string }> {
+  const segments: Array<{ key: string; value: string }> = [];
+  const add = (key: string, value: string | undefined) => {
+    if (value?.trim()) segments.push({ key, value });
+  };
+
+  add("title", signal.title);
+  add("source", signal.source);
+  add("date", signal.date);
+  add("summary", signal.summary);
+  add("longSummary", signal.longSummary ? truncate(signal.longSummary, 900) : undefined);
+  add("whyRecommended", signal.whyRecommended);
+  add("suggestedAction", signal.suggestedAction);
+  signal.keyPoints?.forEach((point, index) => add(`keyPoint.${index}`, point));
+  signal.peerActivity?.forEach((activity, index) =>
+    add(`peerActivity.${index}`, activity.text),
+  );
+  if (signal.funding) {
+    add("funding.deadline", signal.funding.deadline);
+    add("funding.amount", signal.funding.amount);
+    add("funding.funder", signal.funding.funder);
+    add("funding.eligibility", signal.funding.eligibility);
+  }
+
+  return segments;
+}
+
+async function translateSegments(
+  segments: Array<{ key: string; value: string }>,
+  targetLanguage: string,
+): Promise<Map<string, string>> {
+  if (segments.length === 0) return new Map();
+
+  const payload = segments
+    .map((segment, index) => `<ia${index}>${segment.value}</ia${index}>`)
+    .join("\n");
+
+  try {
+    const result = await translateText(payload, targetLanguage);
+    const translatedPayload = cleanTranslationText(result.translated_text);
+    const translated = new Map<string, string>();
+
+    segments.forEach((segment, index) => {
+      const match = translatedPayload.match(
+        new RegExp(`<\\s*ia${index}\\s*>\\s*([\\s\\S]*?)\\s*<\\/\\s*ia${index}\\s*>`, "i"),
+      );
+      const value = match ? cleanTranslationText(match[1]) : "";
+      if (value) translated.set(segment.key, value);
+    });
+
+    if (translated.size > 0) return translated;
+  } catch {
+    // Fall back to individual fields below when a provider drops marker tags.
+  }
+
+  const fallback = new Map<string, string>();
+  await Promise.all(
+    segments.map(async (segment) => {
+      try {
+        const result = await translateText(segment.value, targetLanguage);
+        const value = cleanTranslationText(result.translated_text);
+        if (value) fallback.set(segment.key, value);
+      } catch {
+        // Keep the original text for this field.
+      }
+    }),
+  );
+  return fallback;
+}
+
+function segmentValue(
+  translated: Map<string, string>,
+  key: string,
+  fallback: string,
+): string;
+function segmentValue(
+  translated: Map<string, string>,
+  key: string,
+  fallback: string | undefined,
+): string | undefined;
+function segmentValue(
+  translated: Map<string, string>,
+  key: string,
+  fallback: string | undefined,
+): string | undefined {
+  return translated.get(key) ?? fallback;
 }
 
 function canApplyLabel(value: "yes" | "check" | "no", language: string | undefined): string {
