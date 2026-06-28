@@ -1,0 +1,18 @@
+version: 1
+applications:
+  - appRoot: frontend
+    frontend:
+      phases:
+        preBuild:
+          commands:
+            - npm ci
+        build:
+          commands:
+            - NITRO_PRESET=aws-amplify npm run build
+      artifacts:
+        baseDirectory: .amplify-hosting
+        files:
+          - "**/*"
+      cache:
+        paths:
+          - node_modules/**/*
