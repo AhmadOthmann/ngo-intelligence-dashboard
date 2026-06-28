@@ -90,6 +90,39 @@ $env:VITE_API_BASE_URL="http://127.0.0.1:8000"
 npm run dev
 ```
 
+## AWS Amplify Frontend Deployment
+
+The repository includes `amplify.yml` for AWS Amplify Hosting. It treats this as
+a monorepo and deploys the `frontend` app with Nitro's AWS Amplify output.
+
+In AWS Amplify:
+
+1. Create a new Amplify Hosting app from GitHub.
+2. Choose this repository and the branch you want to deploy.
+3. Set the app root to `frontend` if Amplify does not detect it automatically.
+4. Add this frontend environment variable:
+
+```text
+VITE_API_BASE_URL=https://your-backend-api-domain
+```
+
+Amplify will run:
+
+```bash
+npm ci
+NITRO_PRESET=aws-amplify npm run build
+```
+
+and publish `.amplify-hosting`.
+
+The FastAPI backend is not deployed by Amplify. Deploy it separately, for
+example with AWS Elastic Beanstalk, ECS/Fargate, or EC2. After the backend has a
+public HTTPS URL, add the Amplify domain to the backend CORS list:
+
+```text
+CORS_ORIGINS=https://your-amplify-domain.amplifyapp.com
+```
+
 ## Demo Flow
 
 1. Start backend: `uvicorn backend.main:app --reload`
