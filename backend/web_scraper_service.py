@@ -17,54 +17,113 @@ from .models import ScrapeResult
 
 USER_AGENT = "ngo-intelligence-dashboard/0.1 (+local hackathon demo)"
 DEFAULT_WEB_SOURCES = [
-    "https://reliefweb.int/updates?search=Burundi",
-    "https://reliefweb.int/updates?search=Burundi%20education",
-    "https://reliefweb.int/updates?search=Burundi%20grant",
-    "https://reliefweb.int/updates?search=Burundi%20health",
-    "https://reliefweb.int/jobs?search=Burundi",
-    "https://reliefweb.int/training?search=Burundi",
+    "https://recadec.org/en/a-new-generation-ready-to-transform-the-great-lakes-region/",
+    "https://recadec.org/en/news/",
+    "https://reliefweb.int/country/bdi",
+    "https://reliefweb.int/updates?search=Burundi%20refugees%20Democratic%20Republic%20of%20Congo",
+    "https://reliefweb.int/updates?search=Burundi%20girls%20education",
+    "https://reliefweb.int/updates?search=Burundi%20health%20children",
+    "https://reliefweb.int/updates?search=Great%20Lakes%20Region%20Burundi%20youth",
+    "https://response.reliefweb.int/burundi/reports",
+    "https://response.reliefweb.int/burundi/protection/reports",
+    "https://www.engagement-global.de/en/overview-of-our-programmes",
+    "https://asa.engagement-global.de/en/",
+    "https://www.deutsch-afrikanisches-jugendwerk.de/en/teams-up/funding/submitting-an-application.html",
     "https://www.unocha.org/burundi",
     "https://www.globalfund.org/en/portfolio/country/?loc=BDI",
     "https://www.gavi.org/programmes-impact/country-hub/africa/burundi",
-    "https://www.bmz.de/en",
     "https://www.welttierschutz.org/en/",
     "https://www.welttierschutz.org/en/projects/",
 ]
-RELEVANT_KEYWORDS = [
+GEOGRAPHY_KEYWORDS = [
     "burundi",
     "bujumbura",
     "gitega",
     "gateri",
+    "busuma",
     "great lakes",
+    "east africa",
+    "rwanda",
+    "democratic republic of congo",
+    "drc",
+    "congo",
+]
+BURUNDI_KIDS_KEYWORDS = [
     "education",
+    "school",
+    "attendance",
     "vocational",
     "girls",
+    "girl",
+    "children",
+    "child",
+    "youth",
     "women",
+    "woman",
     "gbv",
+    "gender-based violence",
     "health",
+    "malaria",
     "humanitarian",
     "refugee",
+    "refugees",
+    "displaced",
+    "protection",
+    "wash",
+    "water sanitation",
+]
+FUNDING_KEYWORDS = [
     "funding",
     "grant",
+    "grants",
     "proposal",
+    "proposals",
     "call",
+    "rfa",
+    "application",
+    "applications",
+    "apply",
+    "eligible",
+    "eligibility",
     "deadline",
     "bmz",
-    "ocha",
-    "united nations",
-    "global fund",
-    "gavi",
-    "vaccine",
     "tender",
     "partnership",
-    "ngo",
     "foundation",
+]
+WTG_KEYWORDS = [
     "animal welfare",
     "wildlife",
+    "wildlife protection",
     "rabies",
+    "animal trade",
+    "trafficking",
     "poaching",
     "donkey",
     "puppy",
+    "stray dog",
+    "veterinary",
+    "consumer protection",
+]
+SOURCE_CONTEXT_KEYWORDS = [
+    "ocha",
+    "united nations",
+    "unhcr",
+    "unicef",
+    "global fund",
+    "gavi",
+    "vaccine",
+    "ngo",
+    "civil society",
+    "recadec",
+    "concern worldwide",
+]
+RELEVANT_KEYWORDS = [
+    *GEOGRAPHY_KEYWORDS,
+    *BURUNDI_KIDS_KEYWORDS,
+    *FUNDING_KEYWORDS,
+    *WTG_KEYWORDS,
+    *SOURCE_CONTEXT_KEYWORDS,
 ]
 
 
@@ -154,6 +213,12 @@ class WebScraperService:
         title = extract_title(soup, url)
         raw_text = extract_readable_text(soup)
         if not raw_text or len(raw_text) < 80:
+            return None
+        if (
+            is_listing_page(url)
+            or is_low_value_page(url, title)
+            or not is_relevant_item(title, raw_text, url)
+        ):
             return None
 
         published_at = extract_published_at(soup)
@@ -246,7 +311,7 @@ def text_blocks(soup: BeautifulSoup) -> list[str]:
 def extract_candidate_links(base_url: str, html: str) -> list[str]:
     soup = BeautifulSoup(html, "html.parser")
     base_domain = urlparse(base_url).netloc
-    links: list[str] = []
+    scored_links: list[tuple[int, str]] = []
     for anchor in soup.find_all("a", href=True):
         href = normalize_url(urljoin(base_url, anchor["href"]))
         if not href or href == base_url:
@@ -255,10 +320,129 @@ def extract_candidate_links(base_url: str, html: str) -> list[str]:
         if parsed.netloc != base_domain:
             continue
         link_text = clean_text(anchor.get_text(" "))
+        if is_low_value_page(href, link_text):
+            continue
         haystack = f"{href} {link_text}".lower()
-        if any(keyword in haystack for keyword in RELEVANT_KEYWORDS):
-            links.append(href)
-    return list(dict.fromkeys(links))
+        score = relevance_score(haystack)
+        if score > 0:
+            scored_links.append((score, href))
+
+    prioritized: list[str] = []
+    for _score, href in sorted(scored_links, key=lambda pair: pair[0], reverse=True):
+        if href not in prioritized:
+            prioritized.append(href)
+    return prioritized
+
+
+def is_listing_page(url: str) -> bool:
+    parsed = urlparse(url)
+    path = parsed.path.rstrip("/").lower()
+    if parsed.query and path.endswith(("/updates", "/jobs", "/training")):
+        return True
+    if "/tag/" in path:
+        return True
+    if path in {"/country/bdi", "/en/news", "/news"}:
+        return True
+    if path.endswith(("/projects", "/our-projects")):
+        return True
+    if parsed.netloc == "www.unocha.org" and path == "/burundi":
+        return True
+    if parsed.netloc == "www.gavi.org" and "/country-hub/africa/burundi" in path:
+        return True
+    if parsed.netloc == "response.reliefweb.int" and path.endswith("/reports"):
+        return True
+    return False
+
+
+def is_low_value_page(url: str, title_or_text: str) -> bool:
+    parsed = urlparse(url)
+    path = parsed.path.rstrip("/").lower()
+    label = clean_text(title_or_text).lower()
+    base_label = re.split(r"\s*[-–—|]\s*", label, maxsplit=1)[0]
+    if not path or path in {"/", "/en"}:
+        return True
+    low_value_labels = {
+        "about",
+        "about us",
+        "board",
+        "board members",
+        "chairman's speech",
+        "contact",
+        "contact us",
+        "faq",
+        "fqa",
+        "home",
+        "home en",
+        "imprint",
+        "legal notice",
+        "news from recadec",
+        "our mission",
+        "our vision",
+        "our projects",
+        "privacy",
+        "privacy policy",
+        "project objectives",
+        "target beneficiaries",
+        "what we do",
+    }
+    if label in low_value_labels or base_label in low_value_labels:
+        return True
+    if any(
+        part in path
+        for part in (
+            "/contact",
+            "/about",
+            "/privacy",
+            "/imprint",
+            "/faq",
+            "/fqa",
+            "/mission",
+            "/vision",
+            "/target-beneficiaries",
+        )
+    ):
+        return True
+    if "message from" in label and "president" in label:
+        return True
+    return False
+
+
+def is_relevant_item(title: str, raw_text: str, url: str) -> bool:
+    haystack = f"{title} {raw_text} {url}".lower()
+    geo_hits = keyword_hits(haystack, GEOGRAPHY_KEYWORDS)
+    burundi_kids_hits = keyword_hits(haystack, BURUNDI_KIDS_KEYWORDS)
+    funding_hits = keyword_hits(haystack, FUNDING_KEYWORDS)
+    wtg_hits = keyword_hits(haystack, WTG_KEYWORDS)
+    source_hits = keyword_hits(haystack, SOURCE_CONTEXT_KEYWORDS)
+
+    if geo_hits and (burundi_kids_hits or funding_hits or source_hits):
+        return True
+    if funding_hits and (burundi_kids_hits or "africa" in haystack or "ngo" in haystack):
+        return True
+    if wtg_hits and any(
+        context in haystack for context in ("africa", "global", "germany", "europe")
+    ):
+        return True
+    if "recadec" in haystack and any(
+        context in haystack
+        for context in ("burundi", "bujumbura", "great lakes", "education", "youth")
+    ):
+        return True
+    return False
+
+
+def relevance_score(haystack: str) -> int:
+    return (
+        len(keyword_hits(haystack, GEOGRAPHY_KEYWORDS)) * 3
+        + len(keyword_hits(haystack, BURUNDI_KIDS_KEYWORDS)) * 2
+        + len(keyword_hits(haystack, FUNDING_KEYWORDS)) * 3
+        + len(keyword_hits(haystack, WTG_KEYWORDS)) * 2
+        + len(keyword_hits(haystack, SOURCE_CONTEXT_KEYWORDS))
+    )
+
+
+def keyword_hits(haystack: str, keywords: list[str]) -> list[str]:
+    return [keyword for keyword in keywords if keyword in haystack]
 
 
 def extract_published_at(soup: BeautifulSoup) -> Optional[str]:

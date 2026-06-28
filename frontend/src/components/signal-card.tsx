@@ -3,6 +3,7 @@ import {
   Bookmark,
   ChevronDown,
   ChevronUp,
+  CalendarClock,
   ExternalLink,
   Languages,
   Loader2,
@@ -136,6 +137,12 @@ export function SignalCard({ signal }: { signal: Signal }) {
         <span className="text-xs text-muted-foreground">{displaySignal.source}</span>
         <span className="text-xs text-muted-foreground">/</span>
         <span className="text-xs text-muted-foreground">{displaySignal.date}</span>
+        {displaySignal.funding?.deadline && displaySignal.funding.deadline !== "No deadline detected" && (
+          <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-800">
+            <CalendarClock className="h-3 w-3" />
+            {translate(language, "deadline")} {displaySignal.funding.deadline}
+          </span>
+        )}
         {isAutoTranslating && (
           <span className="rounded-full bg-secondary px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
             {translate(language, "translation")} {targetLanguage}...

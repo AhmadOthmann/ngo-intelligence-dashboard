@@ -10,6 +10,11 @@ from fastapi.testclient import TestClient
 from backend.database import create_item
 from backend.main import app
 from backend.models import ScrapeResult
+from backend.web_scraper_service import (
+    is_listing_page,
+    is_low_value_page,
+    is_relevant_item,
+)
 
 
 def test_mvp_endpoints_use_sqlite_and_fallback_analysis(monkeypatch) -> None:
@@ -102,3 +107,40 @@ def test_mvp_endpoints_use_sqlite_and_fallback_analysis(monkeypatch) -> None:
 
         assert client.get(f"/items/{item['id']}").status_code == 200
         assert client.get("/items/999999").status_code == 404
+
+
+def test_scraper_relevance_matches_demo_themes() -> None:
+    assert is_relevant_item(
+        "Concern in Burundi supporting refugees from Democratic Republic of Congo",
+        (
+            "Concern Worldwide is supporting nutrition, water sanitation hygiene, "
+            "children, and protection needs in Busuma refugee camp in Burundi."
+        ),
+        "https://reliefweb.int/report/burundi/concern-burundi-refugees-drc",
+    )
+    assert is_relevant_item(
+        "Small grants for girls education in East Africa",
+        (
+            "Funding call for NGOs supporting girls, school attendance, health, "
+            "and local partners in Burundi. Applications close in August."
+        ),
+        "https://www2.fundsforngos.org/example",
+    )
+    assert is_relevant_item(
+        "Rabies control progress across East Africa",
+        (
+            "Animal welfare and veterinary partners report rabies vaccination "
+            "progress across East Africa and need NGO coordination."
+        ),
+        "https://www.welttierschutz.org/en/projects/rabies/",
+    )
+    assert not is_relevant_item(
+        "Earthquake response update in Venezuela",
+        "Urban search and rescue teams reported infrastructure damage.",
+        "https://reliefweb.int/report/venezuela/earthquake-response",
+    )
+    assert is_listing_page("https://reliefweb.int/updates?search=Burundi%20education")
+    assert is_low_value_page("https://recadec.org/en/contact-us/", "Contact us")
+    assert is_low_value_page("https://recadec.org/en/home/", "Home - recadec.org")
+    assert is_low_value_page("https://recadec.org/en/faq/", "FQA - recadec.org")
+    assert is_low_value_page("https://recadec.org/en/vision/", "Our vision - recadec.org")
