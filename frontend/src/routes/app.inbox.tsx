@@ -164,11 +164,6 @@ function InboxPage() {
             </span>
           )}
         </div>
-        {signalError && (
-          <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-            {signalError}. {translate(language, "sourceErrorFallback")}
-          </div>
-        )}
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
