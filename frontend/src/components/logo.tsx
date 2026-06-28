@@ -1,16 +1,27 @@
-import { Radio } from "lucide-react";
+export function Logo({
+  className = "",
+  tone = "default",
+}: {
+  className?: string;
+  tone?: "default" | "inverse";
+}) {
+  const titleClass = tone === "inverse" ? "text-white" : "text-foreground";
+  const subtitleClass = tone === "inverse" ? "text-white/60" : "text-muted-foreground";
 
-export function Logo({ className = "" }: { className?: string }) {
   return (
     <div className={`flex items-center gap-2 ${className}`}>
-      <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-        <Radio className="h-5 w-5" />
+      <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl bg-white shadow-sm">
+        <img
+          src="/impact-atlas-logo.jpeg"
+          alt="Impact Atlas"
+          className="h-full w-full object-cover"
+        />
       </div>
       <div className="leading-tight">
-        <div className="text-base font-semibold tracking-tight text-foreground">
-          FieldSignal <span className="text-primary">AI</span>
+        <div className={`text-base font-semibold tracking-tight ${titleClass}`}>
+          Impact Atlas
         </div>
-        <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+        <div className={`text-[10px] uppercase tracking-wider ${subtitleClass}`}>
           NGO intelligence
         </div>
       </div>

@@ -9,8 +9,8 @@ import { useAppState } from "@/lib/app-state";
 export const Route = createFileRoute("/login")({
   head: () => ({
     meta: [
-      { title: "Log in — FieldSignal AI" },
-      { name: "description", content: "Log in to your FieldSignal AI account." },
+      { title: "Log in - Impact Atlas" },
+      { name: "description", content: "Log in to your Impact Atlas account." },
     ],
   }),
   component: LoginPage,
@@ -83,7 +83,7 @@ function LoginPage() {
         </Button>
 
         <p className="mt-6 text-center text-xs text-muted-foreground">
-          New to FieldSignal?{" "}
+          New to Impact Atlas?{" "}
           <Link to="/signup" className="font-medium text-primary hover:underline">
             Create NGO profile
           </Link>

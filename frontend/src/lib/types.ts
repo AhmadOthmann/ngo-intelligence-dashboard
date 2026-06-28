@@ -42,6 +42,8 @@ export interface Signal {
   peerActivity?: PeerActivity[];
   suggestedAction: string;
   funding?: FundingDetails;
+  translatedText?: string;
+  translatedLanguage?: string;
   url?: string;
 }
 
@@ -88,6 +90,7 @@ export interface ChatMessage {
   originalLang: string;
   translatedText: string;
   targetLang: string;
+  translationError?: string;
   timestamp: string;
   sentAt?: string;
 }

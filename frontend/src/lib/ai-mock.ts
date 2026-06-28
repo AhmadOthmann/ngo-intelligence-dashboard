@@ -37,9 +37,8 @@ export function scoreSignalForNgo(_signal: Signal, _profile: NgoProfile): number
   return Math.random();
 }
 
-export function translateMessage(text: string, _targetLang: string): string {
-  // Stub — would call translation API.
-  return text;
+export function translateMessage(text: string, targetLang: string): string {
+  return `[${targetLang} preview] ${text}`;
 }
 
 export function summarizeSignal(s: Signal): string {

@@ -96,7 +96,7 @@
   --border: oklch(0.92 0.008 220);
   --input: oklch(0.93 0.008 220);
   --ring: oklch(0.55 0.06 220);
-  /* FieldSignal semantic tokens */
+  /* Impact Atlas semantic tokens */
   --priority-urgent: oklch(0.62 0.21 25);
   --priority-urgent-bg: oklch(0.96 0.04 25);
   --priority-relevant: oklch(0.72 0.15 75);

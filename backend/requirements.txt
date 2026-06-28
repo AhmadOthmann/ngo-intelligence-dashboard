@@ -2,9 +2,10 @@ fastapi
 uvicorn
 feedparser
 pydantic
+python-dotenv
 httpx
 langdetect
-boto3
 openai
+requests
+beautifulsoup4
 pytest
-hypothesis

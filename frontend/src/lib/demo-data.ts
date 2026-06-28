@@ -291,8 +291,8 @@ export const DEMO_CONVERSATIONS: Conversation[] = [
           "Hallo, wir haben gesehen, dass ihr diese Fördermöglichkeit für Mädchenbildung gespeichert habt. Habt ihr bereits geprüft, ob deutsche NGOs antragsberechtigt sind?",
         originalLang: "DE",
         translatedText:
-          "Hello, we saw that you saved this funding opportunity for girls' education. Have you already checked whether German NGOs are eligible to apply?",
-        targetLang: "EN",
+          "Bonjour, nous avons vu que vous avez enregistre cette opportunite de financement pour l'education des filles. Avez-vous deja verifie si les ONG allemandes peuvent deposer une demande?",
+        targetLang: "FR",
         timestamp: "09:14",
         sentAt: minutesAgo(180),
       },
@@ -374,4 +374,4 @@ export const FUNDING_CHIPS = [
   "German applicant eligible",
 ];
 
-export const LANGUAGE_OPTIONS = ["German", "English", "French", "Kirundi", "Swahili", "Other"];
+export const LANGUAGE_OPTIONS = ["German", "English", "French"];
