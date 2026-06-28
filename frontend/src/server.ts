@@ -13,6 +13,8 @@ const BACKEND_ORIGIN_ENV_KEYS = [
   "VITE_BACKEND_ORIGIN",
   "VITE_API_BASE_URL",
 ];
+const TEMP_BACKEND_ORIGIN =
+  "https://cheats-recruiting-competitive-light.trycloudflare.com";
 
 let serverEntryPromise: Promise<ServerEntry> | undefined;
 
@@ -63,7 +65,7 @@ function getBackendOrigin(env: unknown): string | undefined {
     const value = readEnv(env, key)?.replace(/\/$/, "");
     if (value && /^https?:\/\//.test(value)) return value;
   }
-  return undefined;
+  return TEMP_BACKEND_ORIGIN;
 }
 
 async function proxyApiRequest(request: Request, env: unknown): Promise<Response> {
