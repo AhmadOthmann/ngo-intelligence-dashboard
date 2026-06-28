@@ -420,7 +420,11 @@ function supportedLanguageName(language: string | undefined): string {
 
 async function translateSignalContent(signal: Signal, targetLanguage: string): Promise<Signal> {
   const segments = collectSignalSegments(signal);
-  const translated = await translateSegments(segments, targetLanguage);
+  let translated = await translateSegments(segments, targetLanguage);
+
+  if (segments.length > 0 && translated.size === 0) {
+    translated = localSignalTranslation(signal, targetLanguage);
+  }
 
   if (segments.length > 0 && translated.size === 0) {
     throw new Error(translate(targetLanguage, "translationProviderEmpty"));
@@ -485,6 +489,313 @@ function collectSignalSegments(signal: Signal): Array<{ key: string; value: stri
 
   return segments;
 }
+
+function localSignalTranslation(signal: Signal, targetLanguage: string): Map<string, string> {
+  const target = supportedLanguageName(targetLanguage);
+  if (target === "English") {
+    return new Map();
+  }
+
+  const translations = LOCAL_SIGNAL_TRANSLATIONS[signal.id]?.[target === "German" ? "de" : "fr"];
+  return translations ? new Map(Object.entries(translations)) : new Map();
+}
+
+type LocalSignalTranslations = Record<string, { de: Record<string, string>; fr: Record<string, string> }>;
+
+const LOCAL_SIGNAL_TRANSLATIONS: LocalSignalTranslations = {
+  "recadec-great-lakes-generation": {
+    de: {
+      title: "Eine neue Generation bereit, die Region der Grossen Seen zu veraendern",
+      date: "4. Maerz 2026",
+      summary:
+        "RECADEC startete in Bujumbura die Academy of Champions of Hope. Junge Menschen aus Burundi, der DR Kongo und Ruanda nehmen an einem einjaehrigen Programm fuer Unternehmertum, Fuehrung und Friedensfoerderung teil.",
+      longSummary:
+        "Die Academy of Champions of Hope eroeffnete ihre erste Kohorte in Bujumbura mit 30 jungen Teilnehmenden aus Burundi, der Demokratischen Republik Kongo und Ruanda. Das Programm verbindet Unternehmertum, Fuehrungskompetenz und regionale Zusammenarbeit, damit junge Menschen praktische Projekte fuer Frieden und wirtschaftliche Resilienz in der Region der Grossen Seen entwickeln koennen.",
+      whyRecommended:
+        "Starker Treffer fuer Burundi Kids, weil der Beitrag Burundi, Jugendfoerderung, Bildung, berufliche Kompetenzen und regionale Zusammenarbeit in der Region der Grossen Seen verbindet.",
+      suggestedAction:
+        "Pruefen Sie moegliche Partner fuer Jugendunternehmertum, Feldkontakte oder Nachweise fuer Projektantraege zu regionaler Jugendfuehrung.",
+      "keyPoint.0": "In Bujumbura mit Jugendlichen aus Burundi, der DR Kongo und Ruanda gestartet",
+      "keyPoint.1": "Fokus auf Unternehmertum, Fuehrung, Friedensfoerderung und regionale Zusammenarbeit",
+      "keyPoint.2": "Relevant fuer Bildung, Jugendfoerderung und Partnernetzwerke in der Region der Grossen Seen",
+      "peerActivity.0": "Relevant fuer NGOs, die mit Jugendlichen in der Region der Grossen Seen arbeiten",
+    },
+    fr: {
+      title: "Une nouvelle generation prete a transformer la region des Grands Lacs",
+      date: "4 mars 2026",
+      summary:
+        "RECADEC a lance l'Academie des Champions de l'Espoir a Bujumbura. Des jeunes du Burundi, de la RDC et du Rwanda participent a un programme d'un an sur l'entrepreneuriat, le leadership et la consolidation de la paix.",
+      longSummary:
+        "L'Academie des Champions de l'Espoir a ouvert sa premiere cohorte a Bujumbura avec 30 jeunes participants du Burundi, de la Republique democratique du Congo et du Rwanda. Le programme combine entrepreneuriat, leadership et cooperation regionale afin que les jeunes puissent developper des projets concrets pour la paix et la resilience economique dans la region des Grands Lacs.",
+      whyRecommended:
+        "Tres pertinent pour Burundi Kids, car l'article relie le Burundi, l'autonomisation des jeunes, l'education, les competences professionnelles et la cooperation regionale dans les Grands Lacs.",
+      suggestedAction:
+        "Examiner les partenaires possibles pour l'entrepreneuriat des jeunes, les contacts terrain ou les preuves a utiliser dans des propositions sur le leadership regional des jeunes.",
+      "keyPoint.0": "Lance a Bujumbura avec des jeunes du Burundi, de la RDC et du Rwanda",
+      "keyPoint.1": "Met l'accent sur l'entrepreneuriat, le leadership, la paix et la cooperation regionale",
+      "keyPoint.2": "Pertinent pour l'education, l'autonomisation des jeunes et les reseaux de partenaires des Grands Lacs",
+      "peerActivity.0": "Pertinent pour les ONG travaillant avec les jeunes dans la region des Grands Lacs",
+    },
+  },
+  "sig-1": {
+    de: {
+      title: "Kleinfoerderung fuer Maedchenbildung in Ostafrika",
+      source: "Stiftungsnewsletter",
+      date: "27. Juni 2026",
+      summary:
+        "Diese Foerdermoeglichkeit unterstuetzt Bildungs- und Empowerment-Projekte fuer Maedchen in Ostafrika. Projekte mit Burundi-Bezug koennen zur regionalen Ausrichtung passen. Der Foerderer verlangt einen lokalen Umsetzungspartner, daher sollte die Antragsberechtigung geprueft werden.",
+      longSummary:
+        "Ein neuer Kleinfoerderzyklus der East Africa Education Foundation richtet sich an Maedchenbildung und Empowerment-Projekte in Ostafrika. Die Foerderung liegt zwischen 10.000 und 50.000 Euro fuer Projekte bis zu 18 Monaten. Deutsche und europaeische NGOs koennen sich bewerben, wenn sie mit einer registrierten lokalen Organisation im Umsetzungsland zusammenarbeiten. Burundi wird fuer den Zyklus 2026 ausdruecklich als Prioritaetsland genannt.",
+      whyRecommended:
+        "Passt zu Ihrem Profil: Burundi, Bildung, Maedchen und Jugendentwicklung. Zwei aehnliche NGOs haben diese Gelegenheit gespeichert. Eine NGO hat sie in ihre Foerderpipeline aufgenommen.",
+      suggestedAction:
+        "Pruefen Sie die Antragsberechtigung und fragen Sie die Peer-NGO nach ihren Erfahrungen mit der Antragstellung.",
+      "peerActivity.0": "Von 2 aehnlichen NGOs gespeichert",
+      "peerActivity.1": "Von 1 NGO in Ostafrika in den Digest aufgenommen",
+      "funding.deadline": "15. August 2026",
+      "funding.funder": "East Africa Education Foundation",
+      "funding.eligibility": "Deutsche NGOs koennen antragsberechtigt sein, lokaler Partner erforderlich",
+    },
+    fr: {
+      title: "Petite subvention pour l'education des filles en Afrique de l'Est",
+      source: "Bulletin d'une fondation",
+      date: "27 juin 2026",
+      summary:
+        "Cette opportunite de financement soutient des projets d'education et d'autonomisation des filles en Afrique de l'Est. Les projets lies au Burundi peuvent correspondre a l'orientation regionale. Le bailleur exige un partenaire local de mise en oeuvre, il faut donc verifier l'eligibilite.",
+      longSummary:
+        "Un nouveau cycle de petites subventions de l'East Africa Education Foundation cible l'education et l'autonomisation des filles en Afrique de l'Est. Les subventions vont de 10 000 a 50 000 euros pour des projets allant jusqu'a 18 mois. Les ONG allemandes et europeennes peuvent postuler si elles travaillent avec une organisation locale enregistree dans le pays de mise en oeuvre. Le Burundi est explicitement cite comme pays prioritaire pour le cycle 2026.",
+      whyRecommended:
+        "Correspond a votre profil: Burundi, education, filles et developpement des jeunes. Deux ONG similaires ont enregistre cette opportunite. Une ONG l'a ajoutee a son pipeline de financement.",
+      suggestedAction:
+        "Verifier l'eligibilite et demander a l'ONG pair son experience de candidature.",
+      "peerActivity.0": "Enregistree par 2 ONG similaires",
+      "peerActivity.1": "Ajoutee au digest par 1 ONG travaillant en Afrique de l'Est",
+      "funding.deadline": "15 aout 2026",
+      "funding.funder": "East Africa Education Foundation",
+      "funding.eligibility": "Les ONG allemandes peuvent etre eligibles, partenaire local requis",
+    },
+  },
+  "sig-2": {
+    de: {
+      title: "Burundi: Sicherheits- und humanitaeres Update fuer die Provinz Bujumbura",
+      date: "26. Juni 2026",
+      summary:
+        "Lokale Behoerden melden vertriebene Familien in der Provinz Bujumbura. Humanitaerer Zugang bleibt moeglich, aber Partner sollten Bewegungen koordinieren.",
+      longSummary:
+        "ReliefWeb berichtet, dass mehrere hundert Familien in der Provinz Bujumbura nach starken Regenfaellen und lokalen Unruhen vertrieben wurden. Humanitaere Korridore bleiben offen, und lokale Behoerden koordinieren mit UN-Agenturen. NGOs in der Region werden gebeten, Feldbewegungen ueber das bestehende Clustersystem abzustimmen.",
+      whyRecommended:
+        "Passt zu Ihrer Region: Burundi, Bujumbura. Wegen humanitaerer Auswirkungen auf Ihr Einsatzgebiet als dringend markiert.",
+      suggestedAction: "Mit dem lokalen Team pruefen und Feldbewegungsplaene aktualisieren.",
+      "keyPoint.0": "Vertreibungen konzentrieren sich auf drei Gemeinden nahe Bujumbura",
+      "keyPoint.1": "Humanitaerer Zugang ist offen, erfordert aber Koordination",
+      "keyPoint.2": "Lokale Cluster-Treffen beginnen wieder woechentlich ab 28. Juni",
+      "keyPoint.3": "Gesundheit und Unterkunft sind die dringendsten Sektoren",
+      "peerActivity.0": "Von 5 NGOs in der Region der Grossen Seen angeklickt",
+    },
+    fr: {
+      title: "Burundi: point securitaire et humanitaire pour la province de Bujumbura",
+      date: "26 juin 2026",
+      summary:
+        "Les autorites locales signalent des familles deplacees dans la province de Bujumbura. L'acces humanitaire reste possible, mais les partenaires doivent coordonner leurs mouvements.",
+      longSummary:
+        "ReliefWeb rapporte que plusieurs centaines de familles ont ete deplacees dans la province de Bujumbura apres de fortes pluies et des troubles localises. Les couloirs humanitaires restent ouverts, et les autorites locales coordonnent avec les agences des Nations unies. Les ONG actives dans la region sont invitees a coordonner leurs deplacements terrain via le systeme de clusters etabli.",
+      whyRecommended:
+        "Correspond a votre region: Burundi, Bujumbura. Marque urgent en raison de l'impact humanitaire sur votre zone d'intervention.",
+      suggestedAction: "Examiner avec votre equipe locale et mettre a jour les plans de deplacement terrain.",
+      "keyPoint.0": "Deplacements concentres dans trois communes pres de Bujumbura",
+      "keyPoint.1": "L'acces humanitaire est ouvert mais necessite une coordination",
+      "keyPoint.2": "Les reunions locales de clusters reprennent chaque semaine a partir du 28 juin",
+      "keyPoint.3": "La sante et l'abri sont les besoins sectoriels les plus urgents",
+      "peerActivity.0": "Clique par 5 ONG travaillant dans la region des Grands Lacs",
+    },
+  },
+  "sig-3": {
+    de: {
+      title: "Malaria und Schulfehlzeiten in Burundi: Feldbericht 2026",
+      source: "Gesundheitspartner-Konsortium",
+      date: "20. Juni 2026",
+      summary:
+        "Ein neuer Bericht verbindet steigende Malariafaelle mit Schulfehlzeiten im laendlichen Burundi. Er empfiehlt kostenguenstige Praeventionsmassnahmen fuer Schulen.",
+      longSummary:
+        "Ein 60-seitiger Feldbericht eines Gesundheitspartner-Konsortiums dokumentiert einen messbaren Zusammenhang zwischen saisonalen Malaria-Spitzen und Schulfehlzeiten im laendlichen Burundi. Auf Basis von Daten aus 42 Schulen empfiehlt der Bericht kostenguenstige schulbasierte Praeventionsmassnahmen, darunter Moskitonetzverteilung, Screening im Klassenzimmer und schnelle Ueberweisungswege zu nahegelegenen Gesundheitszentren.",
+      whyRecommended:
+        "Passt zu Ihren Themen: Gesundheit, Bildung, Burundi. Nuetzliche Evidenz fuer Foerderantraege.",
+      suggestedAction: "In Field Intelligence speichern, um kommende Antraege zu untermauern.",
+      "keyPoint.0": "42 Schulen im laendlichen Burundi untersucht",
+      "keyPoint.1": "Fehlzeiten steigen in der Malaria-Hochsaison um 18%",
+      "keyPoint.2": "Moskitonetze und Ueberweisungswege empfohlen",
+      "keyPoint.3": "Geschaetzte Kosten: 4 bis 7 Euro pro Kind und Jahr",
+      "peerActivity.0": "Von einer NGO gespeichert, der Sie moeglicherweise folgen sollten",
+    },
+    fr: {
+      title: "Paludisme et absence scolaire au Burundi: rapport terrain 2026",
+      source: "Consortium de partenaires sante",
+      date: "20 juin 2026",
+      summary:
+        "Un nouveau rapport relie la hausse des cas de paludisme a l'absenteisme scolaire dans le Burundi rural. Il propose des mesures de prevention peu couteuses pour les ecoles.",
+      longSummary:
+        "Un rapport terrain de 60 pages d'un consortium de partenaires sante documente une correlation mesurable entre les pics saisonniers de paludisme et l'absenteisme scolaire dans le Burundi rural. A partir de donnees recueillies dans 42 ecoles, le rapport recommande des mesures de prevention scolaires peu couteuses, notamment la distribution de moustiquaires, le depistage en classe et des voies de reference rapides vers les centres de sante proches.",
+      whyRecommended:
+        "Correspond a vos themes: sante, education, Burundi. Preuve utile pour les propositions de financement.",
+      suggestedAction: "Enregistrer dans les renseignements terrain pour appuyer les prochaines propositions.",
+      "keyPoint.0": "42 ecoles etudiees dans le Burundi rural",
+      "keyPoint.1": "Le taux d'absence augmente de 18% pendant la saison de pointe du paludisme",
+      "keyPoint.2": "Distribution de moustiquaires et voies de reference recommandees",
+      "keyPoint.3": "Cout estime: 4 a 7 euros par enfant et par an",
+      "peerActivity.0": "Enregistre par une ONG que vous pourriez vouloir suivre",
+    },
+  },
+  "sig-4": {
+    de: {
+      title: "Fortschritte bei der Tollwutkontrolle in Ostafrika",
+      source: "WHO-Regionalbriefing",
+      date: "18. Juni 2026",
+      summary:
+        "Impfkampagnen in Ostafrika zeigen messbare Rueckgaenge bei Tollwutfaellen. Grenzueberschreitende Koordination bleibt die zentrale Herausforderung.",
+      longSummary:
+        "Das WHO-Regionalbriefing bewertet fuenf Jahre Hundeimpfkampagnen in Ostafrika. Gemeldete Tollwutfaelle sanken in Distrikten mit dauerhaft ueber 70% Impfquote durchschnittlich um 38%. Das Briefing nennt die grenzueberschreitende Bewegung ungeimpfter Hunde als Hauptrisiko und schlaegt gemeinsame Korridore Kenia-Tansania-Uganda fuer 2026-2027 vor.",
+      whyRecommended: "Passt zum WTG-Profil: Tollwut, Tierschutz, Ostafrika.",
+      suggestedAction: "Zum Digest fuer die monatliche Pruefung hinzufuegen.",
+      "keyPoint.0": "Faelle in Distrikten mit hoher Impfquote um 38% gesunken",
+      "keyPoint.1": "Grenzueberschreitende Hundebewegung ist das wichtigste Restrisiko",
+      "keyPoint.2": "Kenia-Tansania-Uganda-Impfkorridore vorgeschlagen",
+      "peerActivity.0": "Von 5 NGOs mit Tierschutzarbeit angeklickt",
+    },
+    fr: {
+      title: "Progres de la lutte contre la rage en Afrique de l'Est",
+      source: "Note regionale de l'OMS",
+      date: "18 juin 2026",
+      summary:
+        "Les campagnes de vaccination en Afrique de l'Est montrent une baisse mesurable de l'incidence de la rage. La coordination transfrontaliere reste le principal defi.",
+      longSummary:
+        "La note regionale de l'OMS examine cinq ans de campagnes de vaccination canine en Afrique de l'Est. Les cas signales de rage ont baisse en moyenne de 38% dans les districts ayant maintenu une couverture vaccinale superieure a 70%. La note identifie les mouvements transfrontaliers de chiens non vaccines comme principal risque residuel et propose des corridors conjoints Kenya-Tanzanie-Ouganda pour 2026-2027.",
+      whyRecommended: "Correspond au profil WTG: rage, bien-etre animal, Afrique de l'Est.",
+      suggestedAction: "Ajouter au digest pour l'examen mensuel.",
+      "keyPoint.0": "Cas en baisse de 38% dans les districts a forte couverture",
+      "keyPoint.1": "Le mouvement transfrontalier des chiens est le principal risque residuel",
+      "keyPoint.2": "Corridors de vaccination Kenya-Tanzanie-Ouganda proposes",
+      "peerActivity.0": "Clique par 5 ONG travaillant sur le bien-etre animal",
+    },
+  },
+  "sig-5": {
+    de: {
+      title: "Update zum Wildtierhandel: neue Handelsrouten identifiziert",
+      source: "TRAFFIC-Bulletin",
+      date: "25. Juni 2026",
+      summary:
+        "Ermittler berichten von neuen Schmuggelrouten zwischen Ostafrika und europaeischen Maerkten. Sie fordern staerkere Durchsetzung auf Verbraucherseite.",
+      longSummary:
+        "Ein TRAFFIC-Bulletin kartiert zwei neue Wildtierhandelskorridore, die ostafrikanische Herkunftslaender mit Verbrauchermarkten in Westeuropa verbinden. Ermittler dokumentieren eine Verlagerung von Luftfracht zu kombinierten Land- und Seewegen ueber Mittelmeerhaefen. Der Bericht fordert europaeische NGOs und Regulierer auf, sich auf Verbraucherseite und Lieferkettenpruefungen bei Luxusguetern zu konzentrieren.",
+      whyRecommended: "Passt zum WTG-Profil: Wildtierschutz, Tierhandel, Verbraucherschutz.",
+      suggestedAction: "Mit dem Policy-Team teilen und eine oeffentliche Reaktion pruefen.",
+      "keyPoint.0": "Zwei neue Korridore seit Ende 2025 dokumentiert",
+      "keyPoint.1": "Verlagerung von Luftfracht zu Landwegen plus Mittelmeer-Seewegen",
+      "keyPoint.2": "Forderung nach Durchsetzung auf Verbraucherseite in EU-Maerkten",
+      "peerActivity.0": "Von 3 aehnlichen NGOs gespeichert",
+    },
+    fr: {
+      title: "Trafic d'especes sauvages: de nouvelles routes commerciales identifiees",
+      source: "Bulletin TRAFFIC",
+      date: "25 juin 2026",
+      summary:
+        "Des enqueteurs signalent de nouvelles routes de trafic entre l'Afrique de l'Est et les marches europeens. Ils appellent a un renforcement de l'application cote consommateurs.",
+      longSummary:
+        "Un bulletin TRAFFIC cartographie deux nouveaux corridors de trafic d'especes sauvages reliant des pays sources d'Afrique de l'Est aux marches de consommation d'Europe occidentale. Les enqueteurs documentent un passage du fret aerien a des itineraires mixtes route-mer via des ports mediterraneens. Le rapport appelle les ONG europeennes et les regulateurs a se concentrer sur l'application cote consommateurs et les audits de chaine d'approvisionnement des produits de luxe.",
+      whyRecommended: "Correspond au profil WTG: protection de la faune, commerce animal, protection des consommateurs.",
+      suggestedAction: "Partager avec l'equipe politique et envisager une reponse publique.",
+      "keyPoint.0": "Deux nouveaux corridors documentes depuis fin 2025",
+      "keyPoint.1": "Passage du fret aerien a la route plus mer Mediterranee",
+      "keyPoint.2": "Appel a l'application cote consommateurs sur les marches de l'UE",
+      "peerActivity.0": "Enregistre par 3 ONG similaires",
+    },
+  },
+  "sig-6": {
+    de: {
+      title: "Tierschutz-Feldnotiz von Partner-NGO geteilt",
+      source: "Peer-NGO: Animal Welfare East Africa",
+      date: "22. Juni 2026",
+      summary:
+        "Eine Partner-NGO teilte eine kurze Feldnotiz zu Programmen fuer das Management streunender Hunde in Kenia, einschliesslich Budgetaufschluesselung.",
+      whyRecommended:
+        "Von einer NGO geteilt, die sich mit Ihren Themen ueberschneidet. Empfohlen, weil diese NGO Ihre Region und Themen teilt.",
+      suggestedAction: "Speichern und eine Antwort mit eigenen Felderfahrungen erwaegen.",
+      "peerActivity.0": "Von 2 aehnlichen NGOs gespeichert",
+    },
+    fr: {
+      title: "Note terrain sur le bien-etre animal partagee par une ONG partenaire",
+      source: "ONG pair: Animal Welfare East Africa",
+      date: "22 juin 2026",
+      summary:
+        "Une ONG partenaire a partage une courte note terrain sur les programmes de gestion des chiens errants au Kenya, avec une ventilation budgetaire.",
+      whyRecommended:
+        "Partage par une ONG dont les themes recoupent les votres. Recommande car cette ONG partage votre region et vos sujets.",
+      suggestedAction: "Enregistrer et envisager de repondre avec votre propre experience terrain.",
+      "peerActivity.0": "Enregistre par 2 ONG similaires",
+    },
+  },
+  "sig-7": {
+    de: {
+      title: "BMZ-aehnlicher Foerderaufruf fuer kleine NGOs: Zyklus 2026",
+      source: "BMZ-Partnerportal",
+      date: "24. Juni 2026",
+      summary:
+        "Foerderzyklus offen fuer kleine deutsche NGOs, die Projekte mit lokalen Partnern in Afrika umsetzen. Bildung, Gesundheit und Frauenfoerderung werden priorisiert.",
+      longSummary:
+        "Die BMZ-Foerdereinrichtung fuer kleine NGOs hat ihren Foerderzyklus 2026 geoeffnet. Das Instrument unterstuetzt deutsche NGOs mit einem Jahresumsatz unter 1,5 Mio. Euro bei 12- bis 36-monatigen Projekten mit einem registrierten lokalen Partner in Afrika. Bildung, Gesundheit und Frauenfoerderung sind die angegebenen Prioritaetsbereiche dieses Zyklus. Konzeptnotizen werden monatlich bis zum Ende des Zyklus geprueft.",
+      whyRecommended: "Starker Treffer: deutscher Antragsteller berechtigt, Kleinfoerderung, Afrika, Bildung, Gesundheit.",
+      suggestedAction: "Eignungspruefung starten und eine Konzeptnotiz entwerfen.",
+      "peerActivity.0": "Von 1 aehnlichen NGO in den Digest aufgenommen",
+      "funding.deadline": "30. September 2026",
+      "funding.funder": "BMZ-Foerdereinrichtung fuer kleine NGOs",
+      "funding.eligibility": "Deutsche NGO, lokaler Partner erforderlich",
+    },
+    fr: {
+      title: "Appel de financement type BMZ pour petites ONG: cycle 2026",
+      source: "Portail partenaire BMZ",
+      date: "24 juin 2026",
+      summary:
+        "Cycle de financement ouvert aux petites ONG allemandes mettant en oeuvre des projets avec des partenaires locaux en Afrique. Education, sante et autonomisation des femmes sont prioritaires.",
+      longSummary:
+        "Le dispositif BMZ pour petites ONG a ouvert son cycle de financement 2026. L'instrument soutient des ONG allemandes avec un chiffre d'affaires annuel inferieur a 1,5 million d'euros pour des projets de 12 a 36 mois avec un partenaire local enregistre en Afrique. L'education, la sante et l'autonomisation des femmes sont les priorites annoncees pour ce cycle. Les notes conceptuelles sont examinees chaque mois jusqu'a la cloture du cycle.",
+      whyRecommended: "Tres pertinent: demandeur allemand eligible, petites subventions, Afrique, education, sante.",
+      suggestedAction: "Lancer la verification d'eligibilite et rediger une note conceptuelle.",
+      "peerActivity.0": "Ajoute au digest par 1 ONG similaire",
+      "funding.deadline": "30 septembre 2026",
+      "funding.funder": "Dispositif BMZ pour petites ONG",
+      "funding.eligibility": "ONG allemande, partenaire local requis",
+    },
+  },
+  "sig-8": {
+    de: {
+      title: "Projektbericht: Maedchenbildung in Gitega",
+      source: "Lokaler Partner",
+      date: "15. Juni 2026",
+      summary:
+        "Ein Projektbericht aus Gitega beschreibt die Ergebnisse eines einjaehrigen Maedchenbildungsprogramms: Anwesenheit plus 22%, Schulabbruch minus 11%.",
+      longSummary:
+        "Ein 12-monatiger Projektbericht eines lokalen Partners in Gitega dokumentiert die Ergebnisse eines Nachmittagsprogramms fuer jugendliche Maedchen. Die Anwesenheit stieg im Projektjahr um 22%, der Schulabbruch sank um 11%. Der Bericht enthaelt Kostendaten pro Schule und eine kurze Methodik, die NGOs fuer Geberantraege anpassen koennen.",
+      whyRecommended: "Direkte Evidenz aus Ihrer Region. Nuetzlich fuer Geberberichte.",
+      suggestedAction: "In Field Intelligence speichern, um Antragsnachweise zu sichern.",
+      "keyPoint.0": "Anwesenheit +22%, Schulabbruch -11% ueber 12 Monate",
+      "keyPoint.1": "Kostendaten pro Schule enthalten",
+      "keyPoint.2": "Methodik fuer Antragsanlagen wiederverwendbar",
+    },
+    fr: {
+      title: "Rapport de projet: education des filles a Gitega",
+      source: "Partenaire local",
+      date: "15 juin 2026",
+      summary:
+        "Un rapport de projet de Gitega decrit les resultats d'un programme d'un an pour l'education des filles: presence en hausse de 22%, abandon en baisse de 11%.",
+      longSummary:
+        "Un rapport de projet de 12 mois d'un partenaire local a Gitega documente les resultats d'un programme parascolaire pour adolescentes. La presence a augmente de 22% et l'abandon a baisse de 11% pendant l'annee du programme. Le rapport comprend des donnees de cout par ecole et une courte section methodologique que les ONG peuvent adapter pour des propositions aux bailleurs.",
+      whyRecommended: "Preuve directe de votre region. Utile pour les rapports aux bailleurs.",
+      suggestedAction: "Enregistrer dans les renseignements terrain pour appuyer les propositions.",
+      "keyPoint.0": "Presence +22%, abandon -11% sur 12 mois",
+      "keyPoint.1": "Donnees de cout par ecole incluses",
+      "keyPoint.2": "Methodologie reutilisable pour les annexes de propositions",
+    },
+  },
+} as const;
 
 async function translateSegments(
   segments: Array<{ key: string; value: string }>,
