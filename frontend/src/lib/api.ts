@@ -1,7 +1,31 @@
 import type { Signal, SignalType } from "./types";
 
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, "") ?? "http://127.0.0.1:8000";
+const API_BASE_URL = resolveApiBaseUrl();
+
+function resolveApiBaseUrl(): string {
+  const configured = import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, "");
+  if (configured) return configured;
+
+  if (typeof window !== "undefined") {
+    const host = window.location.hostname;
+    if (host === "localhost" || host === "127.0.0.1") {
+      return "http://127.0.0.1:8000";
+    }
+    if (isPrivateNetworkHost(host)) {
+      return `http://${host}:8000`;
+    }
+  }
+
+  return "http://127.0.0.1:8000";
+}
+
+function isPrivateNetworkHost(host: string): boolean {
+  return (
+    /^10(?:\.\d{1,3}){3}$/.test(host) ||
+    /^192\.168(?:\.\d{1,3}){2}$/.test(host) ||
+    /^172\.(?:1[6-9]|2\d|3[0-1])(?:\.\d{1,3}){2}$/.test(host)
+  );
+}
 
 export interface BackendItem {
   id: number;
