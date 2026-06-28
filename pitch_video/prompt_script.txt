@@ -1,0 +1,379 @@
+# Impact Atlas Pitch Video Script
+
+## Scene 1 – Another Busy Morning
+
+**Visual**
+
+Early morning.
+
+The screen splits into two homes in Europe.
+
+On the left is **Emma**, working remotely for an education NGO supporting communities in East Africa.
+
+On the right is **David**, working remotely for an international animal welfare NGO with projects across Africa.
+
+Coffee mugs.
+
+Laptops opening.
+
+Inboxes overflowing.
+
+Dozens of browser tabs.
+
+Emails arriving.
+
+News alerts.
+
+Funding newsletters.
+
+WhatsApp messages.
+
+Google Alerts.
+
+RSS feeds.
+
+Everything at once.
+
+---
+
+**Narrator**
+
+Every morning starts the same way.
+
+Hundreds of articles.
+
+Dozens of newsletters.
+
+Funding opportunities.
+
+Reports from the field.
+
+Messages from international partners.
+
+For NGOs, finding the right information has become almost a full-time job.
+
+And when that information arrives in different languages...
+
+...valuable opportunities are often missed.
+
+---
+
+## Scene 2 – A Better Way
+
+Both Emma and David close their crowded browsers.
+
+Instead, they open **Impact Atlas**.
+
+The clean white interface appears.
+
+The navigation shows:
+
+Signal Inbox
+
+Saved Signals
+
+Peer Chat
+
+Profile
+
+---
+
+**Narrator**
+
+Impact Atlas was designed around one simple idea.
+
+Instead of asking NGOs to search for information...
+
+AI delivers the information that matters to them.
+
+The right signals.
+
+To the right organization.
+
+In the right language.
+
+At the right time.
+
+---
+
+## Scene 3 – Understanding Every NGO
+
+Emma signs in.
+
+Her organization focuses on education, girls' empowerment and community health.
+
+David's organization focuses on wildlife protection, rabies prevention and animal welfare.
+
+The camera briefly shows the Profile page.
+
+Different missions.
+
+Different regions.
+
+Different funding interests.
+
+Different keywords.
+
+---
+
+**Narrator**
+
+Every NGO is different.
+
+So before AI can recommend anything...
+
+it first learns what matters.
+
+Mission.
+
+Regions.
+
+Funding interests.
+
+Topics.
+
+Preferred language.
+
+Even the organization's own website can help AI better understand what information is truly relevant.
+
+---
+
+## Scene 4 – Signal Inbox
+
+Emma opens her Signal Inbox.
+
+Only a handful of carefully selected signals appear.
+
+One funding opportunity.
+
+A report about malaria affecting school attendance.
+
+A regional education policy update.
+
+David opens his inbox.
+
+His signals are completely different.
+
+An article about wildlife trafficking.
+
+A report on rabies vaccination.
+
+A new international animal welfare funding call.
+
+---
+
+**Narrator**
+
+Neither of them receives the same inbox.
+
+Because neither organization needs the same information.
+
+Instead of information overload...
+
+Impact Atlas continuously filters thousands of public signals...
+
+and delivers only what matches each organization's profile.
+
+---
+
+## Scene 5 – Looking Deeper
+
+Emma expands a funding opportunity.
+
+More details appear.
+
+Deadline.
+
+Funding amount.
+
+Eligibility.
+
+Can this NGO apply?
+
+Peer activity.
+
+Original source.
+
+---
+
+**Narrator**
+
+The inbox stays clean.
+
+Detailed information only appears when it's actually needed.
+
+Everything important is available...
+
+without overwhelming the user.
+
+---
+
+## Scene 6 – Human Decisions
+
+Emma decides the opportunity is valuable.
+
+She clicks **Save**.
+
+A small window appears.
+
+High Importance.
+
+Medium Importance.
+
+Low Importance.
+
+She chooses **High Importance**.
+
+---
+
+**Narrator**
+
+AI recommends.
+
+Humans decide.
+
+Impact Atlas never assumes what is important.
+
+Only the NGO decides what deserves attention.
+
+---
+
+## Scene 7 – Building Knowledge
+
+Emma opens Saved Signals.
+
+Her funding opportunity is already organized.
+
+She expands it.
+
+Reads the complete summary.
+
+Reviews the eligibility.
+
+Changes the status to "Reviewing."
+
+Adds a short note.
+
+---
+
+David opens his own Saved Signals.
+
+His workspace looks completely different.
+
+Wildlife reports.
+
+Funding calls.
+
+Field intelligence.
+
+---
+
+**Narrator**
+
+Saved Signals becomes the NGO's working space.
+
+Not another bookmark folder.
+
+Not another email archive.
+
+A structured knowledge base that grows over time.
+
+---
+
+## Scene 8 – Across Languages
+
+Emma has one question about the funding opportunity.
+
+Instead of searching for an email...
+
+she opens **Peer Chat**.
+
+She contacts another organization already working in the region.
+
+She writes naturally in German.
+
+The recipient instantly receives the message in French.
+
+A reply arrives moments later.
+
+Emma reads it in German.
+
+She never notices the translation happening.
+
+---
+
+**Narrator**
+
+International collaboration should never depend on speaking the same language.
+
+Impact Atlas translates conversations automatically...
+
+allowing organizations to focus on solving problems instead of translating messages.
+
+---
+
+## Scene 9 – Learning Over Time
+
+As both users continue working...
+
+they save articles.
+
+Ignore irrelevant ones.
+
+Review funding opportunities.
+
+Update their profiles.
+
+The AI profile quietly evolves.
+
+Recommendations become increasingly relevant.
+
+---
+
+**Narrator**
+
+Every interaction teaches the system.
+
+The more an NGO uses Impact Atlas...
+
+the better it understands what truly matters.
+
+Not just through keywords...
+
+but through real organizational behavior.
+
+---
+
+## Scene 10
+
+The screen zooms out.
+
+Emma and David close their laptops.
+
+Instead of spending hours searching...
+
+they spent their morning making decisions.
+
+The Impact Atlas logo appears.
+
+---
+
+**Narrator**
+
+NGOs shouldn't spend their time searching for information.
+
+They should spend their time creating impact.
+
+Impact Atlas transforms scattered news, funding opportunities, reports and multilingual communication...
+
+into one intelligent, personalized workspace.
+
+The right information.
+
+For the right organization.
+
+In the right language.
+
+At the right time.
+
+**Impact Atlas. Turning information into impact.**
