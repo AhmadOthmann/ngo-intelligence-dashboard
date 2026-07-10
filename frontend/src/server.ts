@@ -7,14 +7,7 @@ type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
 };
 
-const BACKEND_ORIGIN_ENV_KEYS = [
-  "BACKEND_ORIGIN",
-  "API_PROXY_TARGET",
-  "VITE_BACKEND_ORIGIN",
-  "VITE_API_BASE_URL",
-];
-const TEMP_BACKEND_ORIGIN =
-  "https://cheats-recruiting-competitive-light.trycloudflare.com";
+const BACKEND_ORIGIN_ENV_KEYS = ["BACKEND_ORIGIN", "API_PROXY_TARGET"];
 
 let serverEntryPromise: Promise<ServerEntry> | undefined;
 
@@ -65,7 +58,7 @@ function getBackendOrigin(env: unknown): string | undefined {
     const value = readEnv(env, key)?.replace(/\/$/, "");
     if (value && /^https?:\/\//.test(value)) return value;
   }
-  return TEMP_BACKEND_ORIGIN;
+  return undefined;
 }
 
 async function proxyApiRequest(request: Request, env: unknown): Promise<Response> {
