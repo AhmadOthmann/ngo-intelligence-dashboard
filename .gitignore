@@ -1,10 +1,38 @@
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
 
+# Local configuration and data
+.env
+.env.*
+!.env.example
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+
+# Node and frontend output
 node_modules/
 frontend/node_modules/
-.env
-items.db
-__pycache__/
-*.pyc
 frontend/.amplify-hosting/
 frontend/.output/
+frontend/.nitro/
 frontend/.wrangler/
+frontend/dist/
+
+# Pitch-video output
+pitch_video/outputs/
+pitch_video/videos/
+pitch_video/pitch_video_outputs/
+pitch_video/sora_scene_jobs.jsonl
+
+# Editors and operating systems
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
