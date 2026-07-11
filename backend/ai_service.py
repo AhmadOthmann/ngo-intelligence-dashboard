@@ -77,6 +77,9 @@ class AIService:
         self.api_key = os.environ.get("OPENAI_API_KEY", "").strip()
         self.model = os.environ.get("OPENAI_MODEL", "gpt-5.4-mini").strip()
         self.reasoning_effort = os.environ.get("OPENAI_REASONING_EFFORT", "low").strip()
+        self.translation_provider = (
+            os.environ.get("TRANSLATION_PROVIDER", "none").strip().lower() or "none"
+        )
 
     @property
     def openai_configured(self) -> bool:
@@ -125,24 +128,27 @@ class AIService:
             ),
             "quality_note": "Preview mode: no translation provider completed the request.",
         }
-        provider_fallback = _translate_with_google_fallback(text, target_language, fallback)
-        if not self.openai_configured:
-            return provider_fallback
+        if self.openai_configured:
+            result = self._create_json(
+                name="ngo_translation",
+                schema=_translation_schema(),
+                instructions=(
+                    "Translate NGO communications faithfully. Preserve names, dates, "
+                    "funding deadlines, and practical action details."
+                ),
+                prompt=(
+                    f"Translate the following text into {target_language}. "
+                    "Return only JSON.\n\n"
+                    f"{_truncate(_strip_html(text), 6000)}"
+                ),
+            )
+            if result:
+                return _validate_translation(result, fallback, target_language)
 
-        result = self._create_json(
-            name="ngo_translation",
-            schema=_translation_schema(),
-            instructions=(
-                "Translate NGO communications faithfully. Preserve names, dates, "
-                "funding deadlines, and practical action details."
-            ),
-            prompt=(
-                f"Translate the following text into {target_language}. "
-                "Return only JSON.\n\n"
-                f"{_truncate(_strip_html(text), 6000)}"
-            ),
-        )
-        return _validate_translation(result, provider_fallback, target_language)
+        if self.translation_provider == "google":
+            return _translate_with_google_fallback(text, target_language, fallback)
+
+        return fallback
 
     def generate_digest(
         self,
