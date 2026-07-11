@@ -77,9 +77,6 @@ class AIService:
         self.api_key = os.environ.get("OPENAI_API_KEY", "").strip()
         self.model = os.environ.get("OPENAI_MODEL", "gpt-5.4-mini").strip()
         self.reasoning_effort = os.environ.get("OPENAI_REASONING_EFFORT", "low").strip()
-        self.translation_provider = (
-            os.environ.get("TRANSLATION_PROVIDER", "none").strip().lower() or "none"
-        )
 
     @property
     def openai_configured(self) -> bool:
@@ -144,9 +141,6 @@ class AIService:
             )
             if result:
                 return _validate_translation(result, fallback, target_language)
-
-        if self.translation_provider == "google":
-            return _translate_with_google_fallback(text, target_language, fallback)
 
         return fallback
 
@@ -320,90 +314,6 @@ def _validate_translation(
         "translated_text": translated,
         "quality_note": str(result.get("quality_note") or "OpenAI translation completed."),
     }
-
-
-def _translate_with_google_fallback(
-    text: str,
-    target_language: str,
-    fallback: dict[str, Any],
-) -> dict[str, Any]:
-    clean = _truncate(_strip_html(text), 4500)
-    if not clean:
-        return fallback
-    try:
-        from deep_translator import GoogleTranslator
-
-        translator = GoogleTranslator(
-            source="auto",
-            target=_google_language_code(target_language),
-        )
-        translated_chunks = []
-        for chunk in _split_translation_chunks(clean):
-            translated = translator.translate(chunk)
-            if not translated or not translated.strip():
-                return fallback
-            translated_chunks.append(translated.strip())
-
-        translated_text = " ".join(translated_chunks).strip()
-        if translated_text and translated_text != clean.strip():
-            return {
-                "target_language": target_language,
-                "translated_text": translated_text,
-                "quality_note": "Translated with Google Translate fallback.",
-            }
-    except Exception:
-        pass
-    return fallback
-
-
-def _google_language_code(target_language: str) -> str:
-    normalized = target_language.strip().lower()
-    if normalized in {"german", "de"}:
-        return "de"
-    if normalized in {"french", "fr"}:
-        return "fr"
-    return "en"
-
-
-def _split_translation_chunks(text: str, max_chars: int = 1200) -> list[str]:
-    chunks: list[str] = []
-    current = ""
-    for sentence in re.split(r"(?<=[.!?])\s+", text):
-        sentence = sentence.strip()
-        if not sentence:
-            continue
-        if len(sentence) > max_chars:
-            if current:
-                chunks.append(current)
-                current = ""
-            chunks.extend(_split_long_text(sentence, max_chars))
-            continue
-        candidate = f"{current} {sentence}".strip()
-        if len(candidate) <= max_chars:
-            current = candidate
-        else:
-            if current:
-                chunks.append(current)
-            current = sentence
-    if current:
-        chunks.append(current)
-    return chunks or [text]
-
-
-def _split_long_text(text: str, max_chars: int) -> list[str]:
-    chunks: list[str] = []
-    current = ""
-    for word in text.split():
-        candidate = f"{current} {word}".strip()
-        if len(candidate) <= max_chars:
-            current = candidate
-        else:
-            if current:
-                chunks.append(current)
-            current = word
-    if current:
-        chunks.append(current)
-    return chunks
 
 
 def _validate_digest(

@@ -1,4 +1,4 @@
-import { Link, createFileRoute, redirect } from "@tanstack/react-router";
+import { Link, createFileRoute } from "@tanstack/react-router";
 import { ArrowRight, Inbox, Languages, Users } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { Button } from "@/components/ui/button";
@@ -6,22 +6,18 @@ import { useAppState } from "@/lib/app-state";
 import { useNavigate } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/")({
-  beforeLoad: () => {
-    throw redirect({ to: "/signup" });
-  },
   head: () => ({
     meta: [
-      { title: "Impact Atlas - NGO intelligence, routed to the right organization" },
+      { title: "Impact Atlas - transparent NGO intelligence demo" },
       {
         name: "description",
         content:
-          "Impact Atlas helps NGOs discover news, funding, and peer-discovered resources - translated, prioritized, and explained.",
+          "Explore Impact Atlas's working intelligence backend and clearly labelled hackathon workflow demos.",
       },
       { property: "og:title", content: "Impact Atlas" },
       {
         property: "og:description",
-        content:
-          "Relevant NGO intelligence, routed to the right organization in the right language.",
+        content: "A transparent, working prototype for multilingual NGO intelligence.",
       },
     ],
   }),
@@ -37,10 +33,10 @@ function Landing() {
         <Logo />
         <nav className="flex items-center gap-2">
           <Button variant="ghost" asChild>
-            <Link to="/login">Log in</Link>
+            <Link to="/login">Open demo</Link>
           </Button>
           <Button asChild>
-            <Link to="/signup">Sign up</Link>
+            <Link to="/signup">Configure demo</Link>
           </Button>
         </nav>
       </header>
@@ -49,19 +45,19 @@ function Landing() {
         <section className="mx-auto max-w-3xl text-center">
           <span className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1 text-xs text-muted-foreground">
             <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-            AI-powered, multilingual, NGO-focused
+            Hackathon demo · multilingual NGO intelligence
           </span>
           <h1 className="mt-6 text-4xl font-semibold leading-tight tracking-tight text-foreground sm:text-5xl">
-            Relevant NGO intelligence, routed to the right organization in the right language.
+            Explore multilingual NGO intelligence in a transparent, working prototype.
           </h1>
           <p className="mx-auto mt-5 max-w-2xl text-base leading-relaxed text-muted-foreground">
-            Impact Atlas helps NGOs discover news, funding opportunities, and peer-discovered
-            resources - automatically translated, prioritized, and explained.
+            Explore a working intelligence-ingestion backend and a clearly labelled prototype of
+            account, profile, saved-item, and peer workflows.
           </p>
           <div className="mt-8 flex flex-wrap justify-center gap-3">
             <Button size="lg" asChild>
               <Link to="/signup">
-                Create NGO Profile <ArrowRight className="h-4 w-4" />
+                Configure Demo Profile <ArrowRight className="h-4 w-4" />
               </Link>
             </Button>
             <Button
@@ -80,34 +76,34 @@ function Landing() {
         <section className="mt-20 grid gap-5 sm:grid-cols-3">
           <FeatureCard
             icon={<Inbox className="h-5 w-5" />}
-            title="AI Signal Inbox"
-            body="Relevant news and funding opportunities in one place."
+            title="Backend Signal Inbox"
+            body="View stored backend records or an explicitly labelled static demo dataset."
           />
           <FeatureCard
             icon={<Users className="h-5 w-5" />}
-            title="Peer Intelligence"
-            body="Learn from what similar NGOs save, share, and act on."
+            title="Peer Intelligence Demo"
+            body="Explore static example activity; no messages are sent to real organizations."
           />
           <FeatureCard
             icon={<Languages className="h-5 w-5" />}
-            title="Seamless Translation"
-            body="Communicate across organizations in your own language."
+            title="Translation Integration"
+            body="Use a configured provider; without one, preview text is labelled as untranslated."
           />
         </section>
 
         <section className="mt-20 rounded-2xl border border-border bg-card p-8 text-center shadow-[var(--shadow-soft)]">
           <h2 className="text-2xl font-semibold tracking-tight text-foreground">
-            Built for small and mid-size NGOs
+            An MVP for small and mid-size NGOs
           </h2>
           <p className="mx-auto mt-3 max-w-2xl text-sm text-muted-foreground">
-            Not a social network. Impact Atlas routes signals - funding, news, field reports - to
-            the NGOs they actually matter to. Following peers is optional; relevance comes first.
+            The backend ingests, analyzes, and summarizes intelligence. Organization-specific
+            routing, accounts, saved items, and peer messaging remain clearly labelled demo flows.
           </p>
         </section>
       </main>
 
       <footer className="border-t border-border bg-card/60 py-6 text-center text-xs text-muted-foreground">
-        © 2026 Impact Atlas - for the NGO community.
+        © 2026 Impact Atlas · hackathon prototype
       </footer>
     </div>
   );

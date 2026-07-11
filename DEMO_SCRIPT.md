@@ -1,44 +1,67 @@
-# 3-Minute Demo Script
+# 3-minute demo script
 
-## 1. Problem
+## Before presenting
 
-Burundi Kids and WTG need timely news, funding, and risk intelligence, but small
-NGO teams cannot manually monitor every source, summarize every update, and
-translate key communications every day.
+Use a disposable local database. Copy `.env.example` to `.env`, keep `APP_ENV=development`, and confirm `ENABLE_DEMO_ENDPOINTS=true`. Start the backend and frontend:
 
-## 2. Solution
+```bash
+uvicorn backend.main:app --reload
+```
 
-The NGO Intelligence Dashboard monitors feeds and web sources, saves useful
-signals, prioritizes relevance for each NGO, detects funding opportunities,
-recommends next steps, translates priority signals, and creates an NGO-ready
-briefing.
+```bash
+cd frontend
+npm ci
+npm run dev
+```
 
-## 3. Live Demo Steps
+Open <http://127.0.0.1:5173>. Do not present this as a production deployment, account system, or tenant-specific product.
 
-1. Open `http://127.0.0.1:5173/app/dashboard`.
-2. Show the monitoring and analysis status in the dashboard.
-3. Click `Update Feeds`.
-4. Click `Search Web`.
-5. Click `Prioritize`.
-6. Show signals, funding leads, priority signals, and translated signals.
-7. Open a signal detail panel and point to summary, why relevant, and recommended action.
-8. Translate the signal to German or French.
-9. Click `Create Briefing` and read the briefing sections.
+## 0:00–0:30 — Problem
 
-## 4. Why AI Matters
+“Small NGO teams cannot manually monitor every source, funding call, and risk update in multiple languages. Impact Atlas turns that scattered material into a focused intelligence workflow.”
 
-AI turns source content into practical NGO intelligence: classification,
-summaries, relevance scoring, funding detection, recommended actions, translation,
-and a briefing that a busy team can act on quickly.
+On the landing page, point out the **Hackathon demo** label. Enter the default demo workspace. If you configure a custom profile instead, explain that it is stored only in this browser and currently changes presentation, not backend ranking.
 
-## 5. Impact For Burundi Kids And WTG
+## 0:30–1:00 — Load a repeatable dataset
 
-Burundi Kids can spot education, health, GBV, and Great Lakes region updates.
-WTG can monitor animal welfare, rabies, wildlife trade, donkey skin trade, and
-ethical tourism topics. Both teams can identify funding opportunities and share
-translated intelligence with partners.
+Open **Dashboard** and select **Load Local Demo Data**.
 
-## 6. Next Steps
+“This deliberately resets the disposable SQLite database and loads five fixed Burundi Kids and WTG examples. It gives us a repeatable demonstration without relying on external sites.”
 
-After the hackathon, the project can add saved searches, scheduled ingestion,
-user accounts, email alerts, source curation, and richer evaluation of AI output.
+Do not use this control with real data. If it reports that the operation is unavailable, verify the local demo flag; production always returns `404` for this endpoint.
+
+## 1:00–1:50 — Turn sources into actions
+
+Open **Signal Inbox** and point out its data-source label. It must say whether the list is backed by the API or by static demo fixtures. If the backend cannot be reached, show the visible error rather than describing fallback fixtures as live data.
+
+Open a signal and show:
+
+- the source and summary;
+- the relevance score and reason;
+- the target NGO and suggested action; and
+- the funding flag or deadline where present.
+
+“The backend classifies and prioritizes these records for the two hackathon partner profiles, Burundi Kids and WTG. A profile typed into onboarding does not yet retrain or reconfigure that analysis.”
+
+## 1:50–2:25 — Translation with an honest fallback
+
+Translate a signal into German or French.
+
+- If OpenAI is configured, describe it as model-assisted translation.
+- Otherwise, point to the **Translation preview** label and say: “No translation provider is configured, so this is a local preview, not a translated result.”
+
+Never claim that marked preview text is a provider translation.
+
+## 2:25–2:50 — Briefing
+
+Return to **Dashboard**, review the refreshed briefing, and show the priorities, funding opportunities, recommended actions, and risk alerts.
+
+“The aim is not another news feed. It is a short, reviewable list of what an NGO team should verify and act on next.”
+
+## 2:50–3:00 — Close and next steps
+
+“This is a working hackathon MVP with real ingestion, SQLite persistence, analysis, filtering, and provider-conditional translation. Accounts, custom tenant configuration, saved items, and peer chat remain demo experiences. The next production steps are authentication and tenant isolation, managed storage, scheduled jobs, evaluation, monitoring, and network egress controls.”
+
+## Optional live-network segment
+
+Use **Update Intelligence** only when the presentation has extra time and approved sources are reachable. Live RSS and web ingestion is intentionally less repeatable. Outbound requests are URL- and DNS-validated, size-limited, and allowlisted in production, but a hosted service still needs an egress firewall to cover DNS rebinding.

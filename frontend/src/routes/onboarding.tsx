@@ -12,17 +12,13 @@ import { FUNDING_CHIPS, LANGUAGE_OPTIONS, TOPIC_OPTIONS } from "@/lib/demo-data"
 import { generateNgoProfile } from "@/lib/ai-mock";
 import { useAppState } from "@/lib/app-state";
 import type { NgoProfile } from "@/lib/types";
-import {
-  knownLabel,
-  languageOptionLabel,
-  localeFromLanguage,
-} from "@/lib/i18n";
+import { knownLabel, languageOptionLabel, localeFromLanguage } from "@/lib/i18n";
 
 export const Route = createFileRoute("/onboarding")({
   head: () => ({
     meta: [
       { title: "Onboarding - Impact Atlas" },
-      { name: "description", content: "Build your AI relevance profile." },
+      { name: "description", content: "Configure a local Impact Atlas demo profile." },
     ],
   }),
   component: Onboarding,
@@ -42,27 +38,87 @@ const SOURCE_OPTIONS = [
 const APPLICANT_TYPES = ["German NGO", "local NGO", "international NGO", "partner application"];
 const URGENCY_OPTIONS = ["Any", "Within 3 months", "Within 6 months", "Long-term planning"];
 const TOPIC_SUGGESTION_RULES = [
-  { topic: "Education", terms: ["education", "school", "learning", "literacy", "teacher", "student", "classroom"] },
-  { topic: "Children and youth", terms: ["children", "child", "youth", "young people", "adolescent", "student"] },
-  { topic: "Girls and women", terms: ["girls", "girl", "women", "woman", "female", "empowerment", "mothers"] },
-  { topic: "Health", terms: ["health", "medical", "clinic", "nutrition", "sanitation", "wash", "disease", "vaccination"] },
-  { topic: "Gender-based violence", terms: ["gender-based violence", "gbv", "violence against women", "protection"] },
-  { topic: "Menstrual hygiene", terms: ["menstrual", "menstruation", "period poverty", "pads", "hygiene"] },
-  { topic: "Vocational training", terms: ["vocational", "skills training", "livelihood", "employment", "apprenticeship"] },
-  { topic: "Humanitarian aid", terms: ["humanitarian", "emergency", "relief", "crisis", "disaster"] },
-  { topic: "Refugees and migration", terms: ["refugee", "displaced", "migration", "migrant", "idp"] },
-  { topic: "Rural development", terms: ["rural", "village", "community development", "livelihoods"] },
-  { topic: "Animal welfare", terms: ["animal welfare", "animal", "veterinary", "donkey", "dog", "shelter", "livestock"] },
+  {
+    topic: "Education",
+    terms: ["education", "school", "learning", "literacy", "teacher", "student", "classroom"],
+  },
+  {
+    topic: "Children and youth",
+    terms: ["children", "child", "youth", "young people", "adolescent", "student"],
+  },
+  {
+    topic: "Girls and women",
+    terms: ["girls", "girl", "women", "woman", "female", "empowerment", "mothers"],
+  },
+  {
+    topic: "Health",
+    terms: [
+      "health",
+      "medical",
+      "clinic",
+      "nutrition",
+      "sanitation",
+      "wash",
+      "disease",
+      "vaccination",
+    ],
+  },
+  {
+    topic: "Gender-based violence",
+    terms: ["gender-based violence", "gbv", "violence against women", "protection"],
+  },
+  {
+    topic: "Menstrual hygiene",
+    terms: ["menstrual", "menstruation", "period poverty", "pads", "hygiene"],
+  },
+  {
+    topic: "Vocational training",
+    terms: ["vocational", "skills training", "livelihood", "employment", "apprenticeship"],
+  },
+  {
+    topic: "Humanitarian aid",
+    terms: ["humanitarian", "emergency", "relief", "crisis", "disaster"],
+  },
+  {
+    topic: "Refugees and migration",
+    terms: ["refugee", "displaced", "migration", "migrant", "idp"],
+  },
+  {
+    topic: "Rural development",
+    terms: ["rural", "village", "community development", "livelihoods"],
+  },
+  {
+    topic: "Animal welfare",
+    terms: ["animal welfare", "animal", "veterinary", "donkey", "dog", "shelter", "livestock"],
+  },
   { topic: "Wildlife protection", terms: ["wildlife", "conservation", "poaching", "biodiversity"] },
   { topic: "Rabies", terms: ["rabies", "dog bite", "dog vaccination"] },
-  { topic: "Animal trade", terms: ["animal trade", "wildlife trade", "trafficking", "donkey skin", "puppy trade"] },
-  { topic: "Agriculture and consumer protection", terms: ["agriculture", "farming", "farmers", "food security", "consumer protection"] },
-  { topic: "Social media animal abuse", terms: ["social media animal abuse", "online animal abuse", "animal abuse content"] },
-  { topic: "Funding opportunities", terms: ["funding", "grant", "donor", "proposal", "fundraising", "bmz", "foundation"] },
+  {
+    topic: "Animal trade",
+    terms: ["animal trade", "wildlife trade", "trafficking", "donkey skin", "puppy trade"],
+  },
+  {
+    topic: "Agriculture and consumer protection",
+    terms: ["agriculture", "farming", "farmers", "food security", "consumer protection"],
+  },
+  {
+    topic: "Social media animal abuse",
+    terms: ["social media animal abuse", "online animal abuse", "animal abuse content"],
+  },
+  {
+    topic: "Funding opportunities",
+    terms: ["funding", "grant", "donor", "proposal", "fundraising", "bmz", "foundation"],
+  },
   { topic: "Human rights", terms: ["human rights", "rights", "advocacy", "legal support"] },
-  { topic: "Climate and environment", terms: ["climate", "environment", "sustainability", "resilience"] },
+  {
+    topic: "Climate and environment",
+    terms: ["climate", "environment", "sustainability", "resilience"],
+  },
   { topic: "Local security updates", terms: ["security", "conflict", "safety", "unrest"] },
-  { topic: "Development cooperation", terms: ["development cooperation", "partnership", "bmz", "giz", "ngo cooperation"] },
+  {
+    topic: "Development cooperation",
+    terms: ["development cooperation", "partnership", "bmz", "giz", "ngo cooperation"],
+  },
 ] as const;
 const TOPIC_KEYWORD_HINTS: Record<string, string[]> = {
   Education: ["education", "school attendance"],
@@ -114,16 +170,22 @@ function Onboarding() {
   // Step 2
   const [topics, setTopics] = useState<string[]>(INITIAL_SUGGESTIONS.topics);
   const [keywords, setKeywords] = useState(INITIAL_SUGGESTIONS.keywords);
-  const [profilePreview, setProfilePreview] = useState<ReturnType<typeof generateNgoProfile> | null>(null);
+  const [profilePreview, setProfilePreview] = useState<ReturnType<
+    typeof generateNgoProfile
+  > | null>(null);
   const [topicsTouched, setTopicsTouched] = useState(false);
   const [keywordsTouched, setKeywordsTouched] = useState(false);
 
   // Step 3
   const [fundingEnabled, setFundingEnabled] = useState(true);
-  const [fundingRegions, setFundingRegions] = useState<string[]>(INITIAL_SUGGESTIONS.fundingRegions);
+  const [fundingRegions, setFundingRegions] = useState<string[]>(
+    INITIAL_SUGGESTIONS.fundingRegions,
+  );
   const [minAmt, setMinAmt] = useState("EUR 5,000");
   const [maxAmt, setMaxAmt] = useState("EUR 100,000");
-  const [applicantTypes, setApplicantTypes] = useState<string[]>(INITIAL_SUGGESTIONS.applicantTypes);
+  const [applicantTypes, setApplicantTypes] = useState<string[]>(
+    INITIAL_SUGGESTIONS.applicantTypes,
+  );
   const [fundingTopics, setFundingTopics] = useState<string[]>(INITIAL_SUGGESTIONS.fundingTopics);
   const [fundingChips, setFundingChips] = useState<string[]>(INITIAL_SUGGESTIONS.fundingChips);
   const [urgency, setUrgency] = useState("Within 3 months");
@@ -187,12 +249,25 @@ function Onboarding() {
   }
 
   const fundingRegionOptions = useMemo(
-    () => unique(["local", "national", "international", "Africa", "East Africa", "Burundi", country, city, ...fundingRegions]),
+    () =>
+      unique([
+        "local",
+        "national",
+        "international",
+        "Africa",
+        "East Africa",
+        "Burundi",
+        country,
+        city,
+        ...fundingRegions,
+      ]),
     [city, country, fundingRegions],
   );
 
   const finalProfile: NgoProfile = useMemo(() => {
-    const ai = profilePreview ?? generateNgoProfile({ name, country, language, description, topics, keywords });
+    const ai =
+      profilePreview ??
+      generateNgoProfile({ name, country, language, description, topics, keywords });
     return {
       id: "user-ngo",
       name,
@@ -202,7 +277,10 @@ function Onboarding() {
       website,
       description,
       topics,
-      keywords: keywords.split(/[,\n]/).map((s) => s.trim()).filter(Boolean),
+      keywords: keywords
+        .split(/[,\n]/)
+        .map((s) => s.trim())
+        .filter(Boolean),
       focusAreas: ai.focusAreas,
       regions: ai.regions,
       suggestedKeywords: ai.suggestedKeywords,
@@ -219,7 +297,27 @@ function Onboarding() {
       sources,
       sourcesNote,
     };
-  }, [profilePreview, name, country, city, language, website, description, topics, keywords, fundingEnabled, fundingRegions, minAmt, maxAmt, applicantTypes, fundingTopics, fundingChips, urgency, sources, sourcesNote]);
+  }, [
+    profilePreview,
+    name,
+    country,
+    city,
+    language,
+    website,
+    description,
+    topics,
+    keywords,
+    fundingEnabled,
+    fundingRegions,
+    minAmt,
+    maxAmt,
+    applicantTypes,
+    fundingTopics,
+    fundingChips,
+    urgency,
+    sources,
+    sourcesNote,
+  ]);
   const copy = onboardingCopy(language);
 
   return (
@@ -232,16 +330,31 @@ function Onboarding() {
           </div>
         </div>
 
+        <div className="mb-6 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-950">
+          Local demo setup: this stores a profile in your browser and uses deterministic suggestion
+          rules. It does not create an account or configure backend routing.
+        </div>
+
         <Stepper step={step} labels={copy.stepLabels} />
 
         <div className="mt-6 rounded-2xl border border-border bg-card p-8 shadow-[var(--shadow-soft)]">
           {step === 0 && (
             <div className="space-y-5">
               <SectionHead title={copy.basicsTitle} subtitle={copy.basicsSubtitle} />
-              <Field label={copy.organizationName}><Input value={name} onChange={(e) => setName(e.target.value)} /></Field>
+              <Field label={copy.organizationName}>
+                <Input value={name} onChange={(e) => setName(e.target.value)} />
+              </Field>
               <div className="grid gap-4 sm:grid-cols-2">
-                <Field label={copy.country}><Input value={country} onChange={(e) => setCountry(e.target.value)} placeholder={copy.countryPlaceholder} /></Field>
-                <Field label={copy.cityRegion}><Input value={city} onChange={(e) => setCity(e.target.value)} /></Field>
+                <Field label={copy.country}>
+                  <Input
+                    value={country}
+                    onChange={(e) => setCountry(e.target.value)}
+                    placeholder={copy.countryPlaceholder}
+                  />
+                </Field>
+                <Field label={copy.cityRegion}>
+                  <Input value={city} onChange={(e) => setCity(e.target.value)} />
+                </Field>
               </div>
               <Field label={copy.preferredLanguage}>
                 <div className="flex flex-wrap gap-2">
@@ -253,10 +366,18 @@ function Onboarding() {
                 </div>
               </Field>
               <Field label={copy.websiteLabel} hint={copy.websiteHint}>
-                <Input value={website} onChange={(e) => setWebsite(e.target.value)} placeholder="https://..." />
+                <Input
+                  value={website}
+                  onChange={(e) => setWebsite(e.target.value)}
+                  placeholder="https://..."
+                />
               </Field>
               <Field label={copy.descriptionLabel}>
-                <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} />
+                <Textarea
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  rows={3}
+                />
               </Field>
             </div>
           )}
@@ -271,7 +392,7 @@ function Onboarding() {
                     active={topics.includes(t)}
                     onClick={() => {
                       setTopicsTouched(true);
-                      setTopics((p) => p.includes(t) ? p.filter((x) => x !== t) : [...p, t]);
+                      setTopics((p) => (p.includes(t) ? p.filter((x) => x !== t) : [...p, t]));
                     }}
                   >
                     {knownLabel(language, t)}
@@ -296,7 +417,18 @@ function Onboarding() {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => setProfilePreview(generateNgoProfile({ name, country, language, description, topics, keywords }))}
+                  onClick={() =>
+                    setProfilePreview(
+                      generateNgoProfile({
+                        name,
+                        country,
+                        language,
+                        description,
+                        topics,
+                        keywords,
+                      }),
+                    )
+                  }
                 >
                   <Sparkles className="h-4 w-4" /> {copy.generateAiTopicProfile}
                 </Button>
@@ -306,9 +438,18 @@ function Onboarding() {
                   <div className="mb-2 flex items-center gap-2 font-medium text-[var(--peer)]">
                     <Sparkles className="h-4 w-4" /> {copy.aiGeneratedPreview}
                   </div>
-                  <PreviewLine label={copy.detectedFocusAreas} value={localizedList(profilePreview.focusAreas, language)} />
-                  <PreviewLine label={copy.detectedRegions} value={localizedList(profilePreview.regions, language)} />
-                  <PreviewLine label={copy.suggestedExtraKeywords} value={localizedList(profilePreview.suggestedKeywords, language)} />
+                  <PreviewLine
+                    label={copy.detectedFocusAreas}
+                    value={localizedList(profilePreview.focusAreas, language)}
+                  />
+                  <PreviewLine
+                    label={copy.detectedRegions}
+                    value={localizedList(profilePreview.regions, language)}
+                  />
+                  <PreviewLine
+                    label={copy.suggestedExtraKeywords}
+                    value={localizedList(profilePreview.suggestedKeywords, language)}
+                  />
                   <div className="mt-2 text-xs text-muted-foreground">{copy.refineLater}</div>
                 </div>
               )}
@@ -335,7 +476,9 @@ function Onboarding() {
                           active={fundingRegions.includes(r)}
                           onClick={() => {
                             setFundingRegionsTouched(true);
-                            setFundingRegions((p) => p.includes(r) ? p.filter((x) => x !== r) : [...p, r]);
+                            setFundingRegions((p) =>
+                              p.includes(r) ? p.filter((x) => x !== r) : [...p, r],
+                            );
                           }}
                         >
                           {knownLabel(language, r)}
@@ -344,8 +487,12 @@ function Onboarding() {
                     </div>
                   </Field>
                   <div className="grid gap-4 sm:grid-cols-2">
-                    <Field label={copy.minimumFundingAmount}><Input value={minAmt} onChange={(e) => setMinAmt(e.target.value)} /></Field>
-                    <Field label={copy.maximumFundingAmount}><Input value={maxAmt} onChange={(e) => setMaxAmt(e.target.value)} /></Field>
+                    <Field label={copy.minimumFundingAmount}>
+                      <Input value={minAmt} onChange={(e) => setMinAmt(e.target.value)} />
+                    </Field>
+                    <Field label={copy.maximumFundingAmount}>
+                      <Input value={maxAmt} onChange={(e) => setMaxAmt(e.target.value)} />
+                    </Field>
                   </div>
                   <Field label={copy.applicantType}>
                     <div className="flex flex-wrap gap-2">
@@ -355,7 +502,9 @@ function Onboarding() {
                           active={applicantTypes.includes(a)}
                           onClick={() => {
                             setApplicantTypesTouched(true);
-                            setApplicantTypes((p) => p.includes(a) ? p.filter((x) => x !== a) : [...p, a]);
+                            setApplicantTypes((p) =>
+                              p.includes(a) ? p.filter((x) => x !== a) : [...p, a],
+                            );
                           }}
                         >
                           {knownLabel(language, a)}
@@ -371,7 +520,9 @@ function Onboarding() {
                           active={fundingTopics.includes(t)}
                           onClick={() => {
                             setFundingTopicsTouched(true);
-                            setFundingTopics((p) => p.includes(t) ? p.filter((x) => x !== t) : [...p, t]);
+                            setFundingTopics((p) =>
+                              p.includes(t) ? p.filter((x) => x !== t) : [...p, t],
+                            );
                           }}
                         >
                           {knownLabel(language, t)}
@@ -387,7 +538,9 @@ function Onboarding() {
                           active={fundingChips.includes(c)}
                           onClick={() => {
                             setFundingChipsTouched(true);
-                            setFundingChips((p) => p.includes(c) ? p.filter((x) => x !== c) : [...p, c]);
+                            setFundingChips((p) =>
+                              p.includes(c) ? p.filter((x) => x !== c) : [...p, c],
+                            );
                           }}
                         >
                           {knownLabel(language, c)}
@@ -414,12 +567,15 @@ function Onboarding() {
               <SectionHead title={copy.sourcesTitle} subtitle={copy.sourcesSubtitle} />
               <div className="grid gap-2 sm:grid-cols-2">
                 {SOURCE_OPTIONS.map((s) => (
-                  <label key={s} className="flex items-center gap-2 rounded-xl border border-border p-3 text-sm">
+                  <label
+                    key={s}
+                    className="flex items-center gap-2 rounded-xl border border-border p-3 text-sm"
+                  >
                     <Checkbox
                       checked={sources.includes(s)}
                       onCheckedChange={(c) => {
                         setSourcesTouched(true);
-                        setSources((p) => c ? [...p, s] : p.filter((x) => x !== s));
+                        setSources((p) => (c ? [...p, s] : p.filter((x) => x !== s)));
                       }}
                     />
                     {knownLabel(language, s)}
@@ -427,7 +583,11 @@ function Onboarding() {
                 ))}
               </div>
               <Field label={copy.sourcesNoteLabel}>
-                <Textarea value={sourcesNote} onChange={(e) => setSourcesNote(e.target.value)} rows={3} />
+                <Textarea
+                  value={sourcesNote}
+                  onChange={(e) => setSourcesNote(e.target.value)}
+                  rows={3}
+                />
               </Field>
             </div>
           )}
@@ -438,13 +598,31 @@ function Onboarding() {
               <div className="rounded-xl border border-border bg-secondary/40 p-5 text-sm">
                 <ProfileRow label={copy.organization} value={finalProfile.name} />
                 <ProfileRow label={copy.country} value={finalProfile.country} />
-                <ProfileRow label={copy.preferredLanguage} value={languageOptionLabel(language, finalProfile.language)} />
-                <ProfileRow label={copy.regions} value={localizedList(finalProfile.regions, language)} />
-                <ProfileRow label={copy.topics} value={localizedList(finalProfile.topics, language)} />
+                <ProfileRow
+                  label={copy.preferredLanguage}
+                  value={languageOptionLabel(language, finalProfile.language)}
+                />
+                <ProfileRow
+                  label={copy.regions}
+                  value={localizedList(finalProfile.regions, language)}
+                />
+                <ProfileRow
+                  label={copy.topics}
+                  value={localizedList(finalProfile.topics, language)}
+                />
                 {finalProfile.fundingPrefs?.enabled && (
-                  <ProfileRow label={copy.fundingInterests} value={localizedList([...finalProfile.fundingPrefs.chips, ...finalProfile.fundingPrefs.regions], language)} />
+                  <ProfileRow
+                    label={copy.fundingInterests}
+                    value={localizedList(
+                      [...finalProfile.fundingPrefs.chips, ...finalProfile.fundingPrefs.regions],
+                      language,
+                    )}
+                  />
                 )}
-                <ProfileRow label={copy.recommendedSignalTypes} value={localizedList(finalProfile.sources ?? [], language)} />
+                <ProfileRow
+                  label={copy.recommendedSignalTypes}
+                  value={localizedList(finalProfile.sources ?? [], language)}
+                />
               </div>
               <div className="flex flex-wrap gap-2">
                 <Button variant="outline" onClick={() => setStep(0)}>
@@ -463,7 +641,9 @@ function Onboarding() {
           )}
 
           <div className="mt-8 flex justify-between border-t border-border pt-5">
-            <Button variant="ghost" disabled={step === 0} onClick={() => setStep((s) => s - 1)}>{copy.back}</Button>
+            <Button variant="ghost" disabled={step === 0} onClick={() => setStep((s) => s - 1)}>
+              {copy.back}
+            </Button>
             {step < STEPS.length - 1 ? (
               <Button onClick={() => setStep((s) => s + 1)}>{copy.continue}</Button>
             ) : null}
@@ -481,15 +661,21 @@ function Stepper({ step, labels }: { step: number; labels: readonly string[] }) 
         <div key={key} className="flex flex-1 items-center gap-2">
           <div
             className={`flex h-7 w-7 items-center justify-center rounded-full border text-xs font-medium ${
-              i <= step ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card text-muted-foreground"
+              i <= step
+                ? "border-primary bg-primary text-primary-foreground"
+                : "border-border bg-card text-muted-foreground"
             }`}
           >
             {i + 1}
           </div>
-          <span className={`hidden text-xs font-medium sm:block ${i <= step ? "text-foreground" : "text-muted-foreground"}`}>
+          <span
+            className={`hidden text-xs font-medium sm:block ${i <= step ? "text-foreground" : "text-muted-foreground"}`}
+          >
             {labels[i]}
           </span>
-          {i < STEPS.length - 1 && <div className={`h-px flex-1 ${i < step ? "bg-primary" : "bg-border"}`} />}
+          {i < STEPS.length - 1 && (
+            <div className={`h-px flex-1 ${i < step ? "bg-primary" : "bg-border"}`} />
+          )}
         </div>
       ))}
     </div>
@@ -505,7 +691,15 @@ function SectionHead({ title, subtitle }: { title: string; subtitle?: string }) 
   );
 }
 
-function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+function Field({
+  label,
+  hint,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  children: React.ReactNode;
+}) {
   return (
     <div className="space-y-1.5">
       <Label>{label}</Label>
@@ -515,7 +709,15 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
   );
 }
 
-function Chip({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+function Chip({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
   return (
     <button
       type="button"
@@ -557,14 +759,14 @@ function onboardingCopy(language: string) {
   const locale = localeFromLanguage(language);
   if (locale === "fr") {
     return {
-      aiGeneratedPreview: "Apercu du profil genere par IA",
+      aiGeneratedPreview: "Apercu des suggestions locales",
       applicantType: "Type de candidat",
       back: "Retour",
-      basicsSubtitle: "Dites-nous qui vous etes. Cela determine les signaux que vous verrez.",
+      basicsSubtitle: "Decrivez le profil utilise dans cet apercu local.",
       basicsTitle: "Informations de base sur l'organisation",
       cityRegion: "Ville / region",
-      confirmSubtitle: "Voici ce qu'Impact Atlas utilisera pour router les signaux vers vous.",
-      confirmTitle: "Votre profil de pertinence IA",
+      confirmSubtitle: "Ces reglages restent dans ce navigateur et ne configurent pas le backend.",
+      confirmTitle: "Votre profil de pertinence de demo",
       continue: "Continuer",
       country: "Pays",
       countryPlaceholder: "ex. Burundi",
@@ -576,11 +778,12 @@ function onboardingCopy(language: string) {
       editProfile: "Modifier le profil",
       fundingInterests: "Interets de financement",
       fundingRegions: "Regions de financement",
-      fundingSubtitle: "Afficher seulement les financements adaptes a votre eligibilite et capacite.",
+      fundingSubtitle:
+        "Enregistre des preferences de demo; le matching backend n'est pas connecte.",
       fundingTags: "Tags de financement",
       fundingTitle: "Preferences de financement",
-      generateAiTopicProfile: "Generer le profil thematique IA",
-      keywordsHint: "Separe par des virgules. Aide l'IA a capter les termes locaux.",
+      generateAiTopicProfile: "Generer des suggestions locales",
+      keywordsHint: "Separe par des virgules. Aide les regles de demo a capter les termes locaux.",
       keywordsLabel: "Ajouter vos propres mots-cles ou themes",
       keywordsPlaceholder:
         "Burundi, Bujumbura, Gitega, education des filles, financement BMZ, petites subventions",
@@ -590,14 +793,14 @@ function onboardingCopy(language: string) {
       organizationName: "Nom de l'organisation",
       preferredLanguage: "Langue preferee",
       receiveFunding: "Recevoir des opportunites de financement",
-      receiveFundingHint: "Recevez des appels a financement adaptes dans votre boite.",
+      receiveFundingHint: "Preference de demo uniquement; aucun abonnement n'est cree.",
       recommendedSignalTypes: "Types de signaux recommandes",
       refineLater: "Vous pourrez affiner cela dans les prochaines etapes.",
       regions: "Regions",
       sourcesNoteLabel:
         "Collez les flux RSS, mots-cles Google Alert ou sites que vous suivez deja (facultatif)",
-      sourcesSubtitle: "Mixez les sources. Vous pourrez en ajouter plus tard.",
-      sourcesTitle: "Quelles sources devons-nous surveiller ?",
+      sourcesSubtitle: "Enregistre des preferences de sources; aucune surveillance ne demarre.",
+      sourcesTitle: "Quelles sources voudriez-vous surveiller ?",
       stepCounter: (current: number, total: number) => `Etape ${current} sur ${total}`,
       stepLabels: ["Bases", "Themes", "Financement", "Sources", "Confirmation"],
       suggestedExtraKeywords: "Mots-cles supplementaires suggeres",
@@ -607,20 +810,21 @@ function onboardingCopy(language: string) {
       topicsTitle: "Quels themes comptent pour votre travail ?",
       useDescriptionSuggestions: "Utiliser les suggestions de la description",
       websiteHint:
-        "Si vous ajoutez votre site, l'IA comprendra mieux votre mission, vos regions, vos themes et vos besoins de financement.",
+        "Enregistre avec ce profil local pour reference; le prototype n'analyse pas le site.",
       websiteLabel: "URL du site web (facultatif)",
     };
   }
   if (locale === "de") {
     return {
-      aiGeneratedPreview: "KI-generierte Profilvorschau",
+      aiGeneratedPreview: "Vorschau lokaler Vorschlaege",
       applicantType: "Antragstellertyp",
       back: "Zurueck",
-      basicsSubtitle: "Sagen Sie uns, wer Sie sind. Das bestimmt, welche Signale Sie sehen.",
+      basicsSubtitle: "Beschreiben Sie das Profil fuer diese lokale Workflow-Vorschau.",
       basicsTitle: "Grunddaten der Organisation",
       cityRegion: "Stadt / Region",
-      confirmSubtitle: "Das nutzt Impact Atlas, um Signale an Sie weiterzuleiten.",
-      confirmTitle: "Ihr KI-Relevanzprofil",
+      confirmSubtitle:
+        "Diese Einstellungen bleiben im Browser und konfigurieren das Backend nicht.",
+      confirmTitle: "Ihr Demo-Relevanzprofil",
       continue: "Weiter",
       country: "Land",
       countryPlaceholder: "z. B. Burundi",
@@ -632,11 +836,11 @@ function onboardingCopy(language: string) {
       editProfile: "Profil bearbeiten",
       fundingInterests: "Foerderinteressen",
       fundingRegions: "Foerderregionen",
-      fundingSubtitle: "Nur Foerderungen anzeigen, die zu Ihrer Eignung und Kapazitaet passen.",
+      fundingSubtitle: "Speichert Demo-Praeferenzen; Backend-Matching ist nicht verbunden.",
       fundingTags: "Foerder-Tags",
       fundingTitle: "Foerderpraeferenzen",
-      generateAiTopicProfile: "KI-Themenprofil generieren",
-      keywordsHint: "Durch Kommas getrennt. Hilft der KI, lokale Begriffe zu erkennen.",
+      generateAiTopicProfile: "Lokale Vorschlaege erzeugen",
+      keywordsHint: "Durch Kommas getrennt. Hilft den Demo-Regeln, lokale Begriffe zu erkennen.",
       keywordsLabel: "Eigene Stichwoerter oder Themen hinzufuegen",
       keywordsPlaceholder:
         "Burundi, Bujumbura, Gitega, Maedchenbildung, BMZ-Foerderung, kleine Zuschuesse",
@@ -646,14 +850,14 @@ function onboardingCopy(language: string) {
       organizationName: "Name der Organisation",
       preferredLanguage: "Bevorzugte Sprache",
       receiveFunding: "Foerdermoeglichkeiten erhalten",
-      receiveFundingHint: "Passende Foerderaufrufe im Postfach erhalten.",
+      receiveFundingHint: "Nur eine Demo-Praeferenz; es wird kein Abonnement erstellt.",
       recommendedSignalTypes: "Empfohlene Signaltypen",
       refineLater: "Sie koennen dies in den naechsten Schritten verfeinern.",
       regions: "Regionen",
       sourcesNoteLabel:
         "RSS-Feeds, Google-Alert-Stichwoerter oder Websites einfuegen, die Sie bereits beobachten (optional)",
-      sourcesSubtitle: "Kombinieren Sie Quellen. Sie koennen spaeter mehr hinzufuegen.",
-      sourcesTitle: "Welche Quellen sollen wir beobachten?",
+      sourcesSubtitle: "Speichert Quellenpraeferenzen; es startet keine Ueberwachung.",
+      sourcesTitle: "Welche Quellen wuerden Sie beobachten?",
       stepCounter: (current: number, total: number) => `Schritt ${current} von ${total}`,
       stepLabels: ["Basis", "Themen", "Foerderung", "Quellen", "Bestaetigen"],
       suggestedExtraKeywords: "Vorgeschlagene zusaetzliche Stichwoerter",
@@ -663,19 +867,19 @@ function onboardingCopy(language: string) {
       topicsTitle: "Welche Themen sind fuer Ihre Arbeit wichtig?",
       useDescriptionSuggestions: "Vorschlaege aus der Beschreibung nutzen",
       websiteHint:
-        "Wenn Sie Ihre Website hinzufuegen, versteht die KI Ihre Mission, Regionen, Themen und Foerderbedarfe besser.",
+        "Wird nur als Referenz im lokalen Profil gespeichert; der Prototyp analysiert die Website nicht.",
       websiteLabel: "Website-URL (optional)",
     };
   }
   return {
-    aiGeneratedPreview: "AI-generated profile preview",
+    aiGeneratedPreview: "Local suggestion preview",
     applicantType: "Applicant type",
     back: "Back",
-    basicsSubtitle: "Tell us who you are. This shapes the signals you'll see.",
+    basicsSubtitle: "Describe the profile used for this local workflow preview.",
     basicsTitle: "Basic organization information",
     cityRegion: "City / region",
-    confirmSubtitle: "This is what Impact Atlas will use to route signals to you.",
-    confirmTitle: "Your AI Relevance Profile",
+    confirmSubtitle: "These settings stay in this browser and do not configure backend routing.",
+    confirmTitle: "Your demo relevance profile",
     continue: "Continue",
     country: "Country",
     countryPlaceholder: "e.g. Burundi",
@@ -687,28 +891,27 @@ function onboardingCopy(language: string) {
     editProfile: "Edit profile",
     fundingInterests: "Funding interests",
     fundingRegions: "Funding regions",
-    fundingSubtitle: "Only show funding that fits your eligibility and capacity.",
+    fundingSubtitle: "Capture demo preferences; backend matching is not connected.",
     fundingTags: "Funding tags",
     fundingTitle: "Funding preferences",
-    generateAiTopicProfile: "Generate AI topic profile",
-    keywordsHint: "Comma-separated. Helps AI catch local terms.",
+    generateAiTopicProfile: "Generate local topic suggestions",
+    keywordsHint: "Comma-separated. Helps the demo rules catch local terms.",
     keywordsLabel: "Add your own keywords or topics",
-    keywordsPlaceholder:
-      "Burundi, Bujumbura, Gitega, girls' education, BMZ funding, small grants",
+    keywordsPlaceholder: "Burundi, Bujumbura, Gitega, girls' education, BMZ funding, small grants",
     maximumFundingAmount: "Maximum funding amount",
     minimumFundingAmount: "Minimum funding amount",
     organization: "Organization",
     organizationName: "Organization name",
     preferredLanguage: "Preferred language",
     receiveFunding: "Receive funding opportunities",
-    receiveFundingHint: "Get matched funding calls in your inbox.",
+    receiveFundingHint: "Demo preference only; this does not subscribe you to funding calls.",
     recommendedSignalTypes: "Recommended signal types",
     refineLater: "You can refine this in the next steps.",
     regions: "Regions",
     sourcesNoteLabel:
       "Paste RSS feeds, Google Alert keywords, or websites you already monitor (optional)",
-    sourcesSubtitle: "Mix and match. You can add more later.",
-    sourcesTitle: "What sources should we monitor?",
+    sourcesSubtitle: "Record source preferences; this does not start monitoring.",
+    sourcesTitle: "Which sources would you want to monitor?",
     stepCounter: (current: number, total: number) => `Step ${current} of ${total}`,
     stepLabels: ["Basics", "Topics", "Funding", "Sources", "Confirm"],
     suggestedExtraKeywords: "Suggested extra keywords",
@@ -718,7 +921,7 @@ function onboardingCopy(language: string) {
     topicsTitle: "What topics matter to your work?",
     useDescriptionSuggestions: "Use description suggestions",
     websiteHint:
-      "If you add your website, AI can better understand your mission, regions, topics, and funding needs.",
+      "Saved with this local profile for reference; the prototype does not inspect the website.",
     websiteLabel: "Website URL (optional)",
   };
 }
@@ -744,14 +947,19 @@ interface SuggestedDefaults {
 
 function suggestOnboardingDefaults(input: SuggestionInput): SuggestedDefaults {
   const text = normalizeText(
-    [input.name, input.country, input.city, input.language, input.website, input.description].join(" "),
+    [input.name, input.country, input.city, input.language, input.website, input.description].join(
+      " ",
+    ),
   );
-  const matchedTopics = TOPIC_SUGGESTION_RULES
-    .filter((rule) => rule.terms.some((term) => text.includes(term)))
+  const matchedTopics = TOPIC_SUGGESTION_RULES.filter((rule) =>
+    rule.terms.some((term) => text.includes(term)),
+  )
     .map((rule) => rule.topic)
     .filter((topic) => TOPIC_OPTIONS.includes(topic));
   const topics = unique(matchedTopics).slice(0, 7);
-  const selectedTopics = topics.length ? topics : ["Development cooperation", "Funding opportunities"];
+  const selectedTopics = topics.length
+    ? topics
+    : ["Development cooperation", "Funding opportunities"];
   const country = cleanLabel(input.country);
   const city = cleanLabel(input.city);
   const germanContext = hasAny(text, ["german", "germany", "deutsch", "bmz", "giz", ".de"]);
@@ -765,7 +973,13 @@ function suggestOnboardingDefaults(input: SuggestionInput): SuggestedDefaults {
     "great lakes",
   ]);
   const animalContext = selectedTopics.some((topic) =>
-    ["Animal welfare", "Wildlife protection", "Rabies", "Animal trade", "Social media animal abuse"].includes(topic),
+    [
+      "Animal welfare",
+      "Wildlife protection",
+      "Rabies",
+      "Animal trade",
+      "Social media animal abuse",
+    ].includes(topic),
   );
   const womenContext = selectedTopics.some((topic) =>
     ["Girls and women", "Gender-based violence", "Menstrual hygiene"].includes(topic),
@@ -825,7 +1039,9 @@ function suggestOnboardingDefaults(input: SuggestionInput): SuggestedDefaults {
     "Funding calls",
     hasAny(text, ["report", "research", "data", "evaluation"]) ? "NGO reports" : "",
     hasAny(text, ["partner", "network", "peer", "coalition"]) ? "Peer-saved resources" : "",
-    hasAny(text, ["social media", "public posts", "online"]) ? "Public posts from similar NGOs" : "",
+    hasAny(text, ["social media", "public posts", "online"])
+      ? "Public posts from similar NGOs"
+      : "",
     hasAny(text, ["newsletter", "rss", "google alert"]) ? "RSS feeds" : "",
   ]);
 

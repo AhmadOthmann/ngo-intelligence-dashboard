@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { knownLabel, localeFromLanguage, translate } from "@/lib/i18n";
 
 export const Route = createFileRoute("/app/chat")({
-  head: () => ({ meta: [{ title: "Peer Chat - Impact Atlas" }] }),
+  head: () => ({ meta: [{ title: "Peer Chat Demo - Impact Atlas" }] }),
   component: ChatPage,
 });
 
@@ -20,7 +20,7 @@ function ChatPage() {
   const [showOriginal, setShowOriginal] = useState<Record<string, boolean>>({});
   const [isSending, setIsSending] = useState(false);
 
-  const active = activeId ? conversations.find((c) => c.id === activeId) ?? null : null;
+  const active = activeId ? (conversations.find((c) => c.id === activeId) ?? null) : null;
 
   if (!active) {
     return (
@@ -29,9 +29,10 @@ function ChatPage() {
           <h1 className="text-2xl font-semibold tracking-tight text-foreground">
             {translate(language, "peerChat")}
           </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {copy.subtitle}
-          </p>
+          <p className="mt-1 text-sm text-muted-foreground">{copy.subtitle}</p>
+        </div>
+        <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-950">
+          {copy.simulationNotice}
         </div>
         <div className="overflow-hidden rounded-2xl border border-border bg-card">
           {conversations.map((conversation) => {
@@ -58,7 +59,10 @@ function ChatPage() {
                   </div>
                   <div className="mt-0.5 text-[11px] text-muted-foreground">
                     {conversation.country} /{" "}
-                    {conversation.sharedTopics.slice(0, 2).map((topic) => knownLabel(language, topic)).join(", ")}
+                    {conversation.sharedTopics
+                      .slice(0, 2)
+                      .map((topic) => knownLabel(language, topic))
+                      .join(", ")}
                   </div>
                   {last && (
                     <div className="mt-1 line-clamp-1 text-xs text-foreground/70">
@@ -88,13 +92,19 @@ function ChatPage() {
           <div>
             <div className="text-sm font-semibold text-foreground">{active.orgName}</div>
             <div className="text-xs text-muted-foreground">
-              {active.country} / {active.sharedTopics.map((topic) => knownLabel(language, topic)).join(", ")}
+              {active.country} /{" "}
+              {active.sharedTopics.map((topic) => knownLabel(language, topic)).join(", ")}
             </div>
           </div>
           <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
-            <Languages className="h-3 w-3" /> {localizedTranslationStatus(active.translationStatus, language)}
+            <Languages className="h-3 w-3" />{" "}
+            {localizedTranslationStatus(active.translationStatus, language)}
           </span>
         </header>
+
+        <div className="border-b border-amber-300 bg-amber-50 px-4 py-2 text-xs text-amber-950">
+          {copy.simulationNotice}
+        </div>
 
         <div className="flex-1 space-y-4 overflow-auto px-4 py-5 md:px-5">
           {active.messages.length === 0 && (
@@ -109,39 +119,41 @@ function ChatPage() {
             const visibleText = translationFailed
               ? message.originalText
               : mine
-              ? toggled
-                ? message.translatedText
-                : message.originalText
-              : toggled
-                ? message.originalText
-                : message.translatedText;
+                ? toggled
+                  ? message.translatedText
+                  : message.originalText
+                : toggled
+                  ? message.originalText
+                  : message.translatedText;
             const translationLabel = translationFailed
-              ? `${copy.sentIn} ${message.originalLang} / ${copy.translationUnavailable}`
-              : mine
-              ? `${copy.sentIn} ${message.originalLang} / ${copy.translatedTo} ${message.targetLang}`
-              : `${copy.autoTranslated} ${message.originalLang} -> ${message.targetLang}`;
+              ? `${copy.writtenIn} ${message.originalLang} / ${copy.translationUnavailable}`
+              : message.translationKind === "demo"
+                ? `${copy.demoTranslationPreview} ${message.originalLang} -> ${message.targetLang}`
+                : message.translationKind === "provider"
+                  ? `${copy.providerTranslated} ${message.originalLang} -> ${message.targetLang}`
+                  : copy.noTranslationNeeded;
             const toggleLabel = translationFailed
               ? ""
               : mine
-              ? toggled
-                ? copy.showMyMessage
-                : copy.showRecipientTranslation
-              : toggled
-                ? copy.showTranslation
-                : copy.showOriginal;
+                ? toggled
+                  ? copy.showMyMessage
+                  : copy.showPeerLanguagePreview
+                : toggled
+                  ? copy.showTranslation
+                  : copy.showOriginal;
 
             return (
               <div key={message.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
                 <div
                   className={`max-w-[78%] rounded-2xl px-4 py-3 ${
-                    mine
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-secondary text-foreground"
+                    mine ? "bg-primary text-primary-foreground" : "bg-secondary text-foreground"
                   }`}
                 >
                   <div className="mb-1 flex items-center justify-between gap-3 text-[10px] opacity-80">
-                    <span>{mine ? profile?.name ?? copy.you : active.orgName}</span>
-                    <span>{formatChatTimeLocalized(message.sentAt, language) || message.timestamp}</span>
+                    <span>{mine ? (profile?.name ?? copy.you) : active.orgName}</span>
+                    <span>
+                      {formatChatTimeLocalized(message.sentAt, language) || message.timestamp}
+                    </span>
                   </div>
                   <div className="text-sm leading-relaxed">{visibleText}</div>
                   <div className="mt-2 flex items-center justify-between gap-2 text-[10px] opacity-80">
@@ -187,6 +199,7 @@ function ChatPage() {
                 try {
                   await sendMessage(active.id, text, profile?.language ?? "auto");
                   setDraft("");
+                  toast.success(copy.addedLocally);
                 } catch (error) {
                   toast.error(error instanceof Error ? error.message : copy.messageFailed);
                 } finally {
@@ -214,6 +227,7 @@ function ChatPage() {
               <Bookmark className="h-4 w-4" /> {copy.saveInsightToTags}
             </Button>
           </div>
+          <p className="mt-2 text-xs text-muted-foreground">{copy.localOnly}</p>
         </footer>
       </section>
     </div>
@@ -235,69 +249,84 @@ function chatCopy(language: string | undefined) {
   const locale = localeFromLanguage(language);
   if (locale === "fr") {
     return {
-      aiDraftReply: "Brouillon IA",
-      autoTranslated: "Traduit automatiquement",
-      empty: "Aucun message pour l'instant. Lancez la conversation et Impact Atlas traduira.",
+      addedLocally: "Ajoute uniquement a cette simulation locale; rien n'a ete envoye.",
+      aiDraftReply: "Brouillon de demo local",
+      demoTranslationPreview: "Apercu de traduction de demo locale (non livre)",
+      empty: "Aucun message simule pour l'instant. Ajoutez-en un uniquement dans ce navigateur.",
+      localOnly: "Les messages restent dans la memoire de ce navigateur et ne sont jamais livres.",
       messageFailed: "La traduction du message a echoue",
-      placeholder: "Ecrivez dans votre langue. Impact Atlas traduira pour le destinataire.",
-      savedInsightPrefix: "Note sauvegardee depuis la conversation avec",
+      noTranslationNeeded: "Aucune traduction necessaire / simulation locale",
+      placeholder: "Ecrivez un message simule. Il ne sera pas envoye a l'organisation affichee.",
+      providerTranslated: "Traduction fournisseur pour cette simulation locale",
+      savedInsightPrefix: "Note simulee sauvegardee depuis le chat local avec l'exemple",
       savedToTags: "Sauvegarde dans Tags",
       saveInsightToTags: "Sauvegarder dans Tags",
-      send: "Envoyer",
-      sending: "Envoi...",
-      sentIn: "Envoye en",
+      send: "Ajouter a la simulation",
+      sending: "Ajout...",
       showMyMessage: "Afficher mon message",
       showOriginal: "Afficher l'original",
-      showRecipientTranslation: "Afficher la traduction destinataire",
+      showPeerLanguagePreview: "Afficher l'apercu dans la langue du pair",
       showTranslation: "Afficher la traduction",
-      subtitle: "Conversations avec des ONG pairs, traduites entre votre langue et la leur.",
-      translatedTo: "traduit vers",
-      translationUnavailable: "traduction indisponible",
+      simulationNotice:
+        "Simulation locale uniquement: aucune organisation reelle ne recoit ces messages.",
+      subtitle: "Simulation locale avec des organisations exemples; aucun message n'est livre.",
+      translationUnavailable: "non traduit; fournisseur indisponible ou apercu uniquement",
+      writtenIn: "Ecrit en",
       you: "Vous",
     };
   }
   if (locale === "de") {
     return {
-      aiDraftReply: "KI-Antwortentwurf",
-      autoTranslated: "Automatisch uebersetzt",
-      empty: "Noch keine Nachrichten. Starten Sie die Unterhaltung und Impact Atlas uebersetzt.",
+      addedLocally: "Nur zu dieser lokalen Simulation hinzugefuegt; nichts wurde gesendet.",
+      aiDraftReply: "Lokaler Demo-Entwurf",
+      demoTranslationPreview: "Lokale Demo-Uebersetzungsvorschau (nicht zugestellt)",
+      empty: "Noch keine simulierten Nachrichten. Fuegen Sie eine nur in diesem Browser hinzu.",
+      localOnly: "Nachrichten bleiben im Browser-Speicher und werden nie zugestellt.",
       messageFailed: "Nachrichtenuebersetzung fehlgeschlagen",
-      placeholder: "Schreiben Sie in Ihrer Sprache. Impact Atlas uebersetzt fuer den Empfaenger.",
-      savedInsightPrefix: "Gespeicherte Notiz aus der Unterhaltung mit",
+      noTranslationNeeded: "Keine Uebersetzung noetig / lokale Simulation",
+      placeholder:
+        "Schreiben Sie eine simulierte Nachricht. Sie wird nicht an die angezeigte Organisation gesendet.",
+      providerTranslated: "Anbieter-Uebersetzung fuer diese lokale Simulation",
+      savedInsightPrefix: "Simulierte Notiz aus lokalem Chat mit Beispiel",
       savedToTags: "In Tags gespeichert",
       saveInsightToTags: "In Tags speichern",
-      send: "Senden",
-      sending: "Sendet...",
-      sentIn: "Gesendet in",
+      send: "Zur Simulation hinzufuegen",
+      sending: "Wird hinzugefuegt...",
       showMyMessage: "Meine Nachricht anzeigen",
       showOriginal: "Original anzeigen",
-      showRecipientTranslation: "Empfaenger-Uebersetzung anzeigen",
+      showPeerLanguagePreview: "Vorschau in Peer-Sprache anzeigen",
       showTranslation: "Uebersetzung anzeigen",
-      subtitle: "Unterhaltungen mit Peer-NGOs, uebersetzt zwischen Ihrer Sprache und ihrer.",
-      translatedTo: "uebersetzt nach",
-      translationUnavailable: "Uebersetzung nicht verfuegbar",
+      simulationNotice:
+        "Nur lokale Simulation: Keine echte Organisation erhaelt diese Nachrichten.",
+      subtitle: "Lokale Simulation mit Beispielorganisationen; nichts wird zugestellt.",
+      translationUnavailable: "nicht uebersetzt; Anbieter nicht verfuegbar oder nur Vorschau",
+      writtenIn: "Geschrieben auf",
       you: "Sie",
     };
   }
   return {
-    aiDraftReply: "AI draft reply",
-    autoTranslated: "Auto-translated",
-    empty: "No messages yet. Start the conversation and Impact Atlas will translate it.",
+    addedLocally: "Added only to this local simulation; nothing was sent.",
+    aiDraftReply: "Local demo draft",
+    demoTranslationPreview: "Local demo translation preview (not delivered)",
+    empty: "No simulated messages yet. Add one only in this browser.",
+    localOnly: "Messages remain in browser memory and are never delivered.",
     messageFailed: "Message translation failed",
-    placeholder: "Write in your language. Impact Atlas will translate it for the recipient.",
-    savedInsightPrefix: "Saved insight from conversation with",
+    noTranslationNeeded: "No translation needed / local simulation",
+    placeholder: "Write a simulated message. It will not be sent to the organization shown.",
+    providerTranslated: "Provider translation for this local simulation",
+    savedInsightPrefix: "Saved simulated note from local chat with example",
     savedToTags: "Saved to Tags",
     saveInsightToTags: "Save insight to Tags",
-    send: "Send",
-    sending: "Sending...",
-    sentIn: "Sent in",
+    send: "Add to simulation",
+    sending: "Adding...",
     showMyMessage: "Show my message",
     showOriginal: "Show original",
-    showRecipientTranslation: "Show recipient translation",
+    showPeerLanguagePreview: "Show peer-language preview",
     showTranslation: "Show translation",
-    subtitle: "Conversations with peer NGOs, translated between your language and theirs.",
-    translatedTo: "translated to",
-    translationUnavailable: "translation unavailable",
+    simulationNotice: "Local simulation only: no real organization receives these messages.",
+    subtitle: "Local simulation with example organizations; no messages are delivered.",
+    translationUnavailable: "not translated; provider unavailable or preview only",
+    writtenIn: "Written in",
     you: "You",
   };
 }
@@ -311,9 +340,9 @@ function localizedTranslationStatus(status: string, language: string | undefined
     return `Same language (${codes[0]})`;
   }
   if (codes.length >= 2) {
-    if (locale === "fr") return `Traduction automatique ${codes[0]} <-> ${codes[1]}`;
-    if (locale === "de") return `Automatische Uebersetzung ${codes[0]} <-> ${codes[1]}`;
-    return `Auto-translating ${codes[0]} <-> ${codes[1]}`;
+    if (locale === "fr") return `Simulation de traduction ${codes[0]} <-> ${codes[1]}`;
+    if (locale === "de") return `Uebersetzungssimulation ${codes[0]} <-> ${codes[1]}`;
+    return `Translation simulation ${codes[0]} <-> ${codes[1]}`;
   }
   return status;
 }

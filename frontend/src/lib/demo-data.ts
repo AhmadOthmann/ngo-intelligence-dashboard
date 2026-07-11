@@ -7,8 +7,7 @@ export const BURUNDI_KIDS: NgoProfile = {
   city: "Bujumbura",
   language: "German",
   website: "https://burundikids.example.org",
-  description:
-    "Small NGO supporting education, girls' empowerment, and health in Burundi.",
+  description: "Small NGO supporting education, girls' empowerment, and health in Burundi.",
   topics: [
     "Education",
     "Children and youth",
@@ -85,6 +84,7 @@ export const FEATURED_INBOX_SIGNAL: Signal = {
   title: "A new generation ready to transform the Great Lakes Region",
   source: "RECADEC East Africa",
   date: "4 March 2026",
+  dateIso: "2026-03-04T00:00:00Z",
   originalLanguage: "English",
   summary:
     "RECADEC launched the Academy of Champions of Hope in Bujumbura, bringing young people from Burundi, DRC, and Rwanda into a one-year entrepreneurship and leadership program for peacebuilding and regional transformation.",
@@ -113,6 +113,7 @@ export const DEMO_SIGNALS: Signal[] = [
     title: "Small-grant opportunity for girls' education in East Africa",
     source: "Foundation newsletter",
     date: "27 June 2026",
+    dateIso: "2026-06-27T00:00:00Z",
     originalLanguage: "English",
     summary:
       "This funding opportunity supports education and empowerment projects for girls in East Africa. Burundi-related projects may fit the regional focus. The funder requires a local implementation partner, so eligibility should be checked before applying.",
@@ -125,10 +126,10 @@ export const DEMO_SIGNALS: Signal[] = [
       { text: "Saved by 2 similar NGOs" },
       { text: "Added to digest by 1 NGO working in East Africa" },
     ],
-    suggestedAction:
-      "Check eligibility and ask the peer NGO about their application experience.",
+    suggestedAction: "Check eligibility and ask the peer NGO about their application experience.",
     funding: {
       deadline: "15 August 2026",
+      deadlineIso: "2026-08-15T00:00:00Z",
       amount: "€10,000–€50,000",
       funder: "East Africa Education Foundation",
       eligibility: "German NGOs may be eligible, local partner required",
@@ -143,6 +144,7 @@ export const DEMO_SIGNALS: Signal[] = [
     title: "Burundi: security and humanitarian update for Bujumbura province",
     source: "ReliefWeb",
     date: "26 June 2026",
+    dateIso: "2026-06-26T00:00:00Z",
     originalLanguage: "French",
     summary:
       "Local authorities report displaced families in Bujumbura province. Humanitarian access remains possible but partners should coordinate movements.",
@@ -168,6 +170,7 @@ export const DEMO_SIGNALS: Signal[] = [
     title: "Malaria and school absence in Burundi: 2026 field report",
     source: "Health partner consortium",
     date: "20 June 2026",
+    dateIso: "2026-06-20T00:00:00Z",
     originalLanguage: "French",
     summary:
       "New report links rising malaria cases to school absenteeism in rural Burundi. Suggests low-cost prevention measures schools can adopt.",
@@ -193,6 +196,7 @@ export const DEMO_SIGNALS: Signal[] = [
     title: "Rabies control progress across East Africa",
     source: "WHO regional brief",
     date: "18 June 2026",
+    dateIso: "2026-06-18T00:00:00Z",
     originalLanguage: "English",
     summary:
       "Vaccination campaigns in East Africa show measurable drops in rabies incidence. Cross-border coordination remains the key challenge.",
@@ -204,8 +208,7 @@ export const DEMO_SIGNALS: Signal[] = [
       "Proposed Kenya–Tanzania–Uganda vaccination corridors",
     ],
     aiImportance: "low",
-    whyRecommended:
-      "Matches WTG profile: rabies, animal welfare, East Africa.",
+    whyRecommended: "Matches WTG profile: rabies, animal welfare, East Africa.",
     peerActivity: [{ text: "Clicked by 5 NGOs working on animal welfare" }],
     suggestedAction: "Add to digest for monthly review.",
     url: "#",
@@ -217,6 +220,7 @@ export const DEMO_SIGNALS: Signal[] = [
     title: "Wildlife trafficking update: new trade routes identified",
     source: "TRAFFIC bulletin",
     date: "25 June 2026",
+    dateIso: "2026-06-25T00:00:00Z",
     originalLanguage: "English",
     summary:
       "Investigators report new trafficking routes between East Africa and European markets. Calls for stronger consumer-side enforcement.",
@@ -228,8 +232,7 @@ export const DEMO_SIGNALS: Signal[] = [
       "Calls for consumer-side enforcement in EU markets",
     ],
     aiImportance: "important",
-    whyRecommended:
-      "Matches WTG profile: wildlife protection, animal trade, consumer protection.",
+    whyRecommended: "Matches WTG profile: wildlife protection, animal trade, consumer protection.",
     peerActivity: [{ text: "Saved by 3 similar NGOs" }],
     suggestedAction: "Share with policy team and consider a public response.",
     url: "#",
@@ -241,6 +244,7 @@ export const DEMO_SIGNALS: Signal[] = [
     title: "Animal welfare field note shared by partner NGO",
     source: "Peer NGO: Animal Welfare East Africa",
     date: "22 June 2026",
+    dateIso: "2026-06-22T00:00:00Z",
     originalLanguage: "English",
     summary:
       "Partner NGO shared a short field note on stray dog management programs in Kenya, including budget breakdown.",
@@ -258,6 +262,7 @@ export const DEMO_SIGNALS: Signal[] = [
     title: "BMZ-style funding call for small NGOs: 2026 cycle",
     source: "BMZ partner portal",
     date: "24 June 2026",
+    dateIso: "2026-06-24T00:00:00Z",
     originalLanguage: "German",
     summary:
       "Funding cycle open for small German NGOs implementing projects with local partners in Africa. Education, health, and women's empowerment prioritized.",
@@ -270,6 +275,7 @@ export const DEMO_SIGNALS: Signal[] = [
     suggestedAction: "Start eligibility check and draft a concept note.",
     funding: {
       deadline: "30 September 2026",
+      deadlineIso: "2026-09-30T00:00:00Z",
       amount: "€25,000–€200,000",
       funder: "BMZ small-NGO facility",
       eligibility: "German NGO, local partner required",
@@ -284,6 +290,7 @@ export const DEMO_SIGNALS: Signal[] = [
     title: "Rapport de projet: éducation des filles à Gitega",
     source: "Local partner",
     date: "15 June 2026",
+    dateIso: "2026-06-15T00:00:00Z",
     originalLanguage: "French",
     summary:
       "Project report from Gitega describes outcomes of a one-year girls' education program: attendance up 22%, dropout down 11%.",

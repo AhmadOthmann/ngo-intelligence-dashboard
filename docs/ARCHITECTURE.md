@@ -2,13 +2,13 @@
 
 ## Scope
 
-The NGO Intelligence Dashboard is a hackathon MVP with three runtime concerns:
+Impact Atlas is a hackathon MVP with three runtime concerns:
 
 - collect potentially relevant material from RSS feeds and web pages;
 - turn stored material into structured NGO intelligence; and
 - present results in a browser dashboard.
 
-It is a modular monolith, not a distributed production system. The frontend and backend are deployed separately. Only backend items and their analysis are persistent; account, profile, saved-item, and chat state are frontend demonstrations held in memory.
+It is a modular monolith, not a distributed production system. The frontend and backend are deployed separately. Backend items and their analysis are stored in SQLite. Account, profile, saved-item, and chat experiences are frontend demonstrations: the demo profile is browser-local, while the other interaction state is in memory.
 
 ## Runtime components
 
@@ -17,13 +17,14 @@ It is a modular monolith, not a distributed production system. The frontend and 
 | Browser application | navigation, filters, actions, item views, translations, and briefings | `frontend/src/` |
 | Frontend server | server-side rendering and optional same-origin `/api` proxy | `frontend/src/server.ts` |
 | HTTP API | validation, routing, CORS, and orchestration | `backend/main.py` |
+| Safe outbound client | public-destination validation, redirect validation, timeouts, content checks, and response-size limits | `backend/http_client.py` |
 | RSS ingestion | feed retrieval, parsing, language detection, and deduplication | `backend/ingest_service.py` |
 | Web ingestion | page retrieval, text extraction, link discovery, relevance filtering, and robots checks | `backend/web_scraper_service.py` |
 | Analysis | item analysis, bulk analysis, translations, and digest assembly | `backend/analysis_service.py` |
 | AI adapter | OpenAI structured-output calls plus deterministic fallbacks | `backend/ai_service.py` |
 | Persistence | schema creation, migration helpers, filtering, and CRUD | `backend/database.py` |
 | Domain models | API request/response validation and allowed values | `backend/models.py` |
-| Demo state | volatile profile, saved/ignored items, and conversations | `frontend/src/lib/app-state.tsx` |
+| Demo state | browser-local profile plus volatile saved/ignored items and conversations | `frontend/src/lib/app-state.tsx` |
 | Demo fixtures | static profiles, signals, and conversations | `frontend/src/lib/demo-data.ts` |
 
 ## Request and data flow
@@ -39,7 +40,8 @@ sequenceDiagram
 
     U->>F: Start ingestion
     F->>A: POST /ingest/rss or /ingest/web
-    A->>S: Fetch source content
+    A->>A: Validate URL and resolve public addresses
+    A->>S: Fetch source content with bounded redirects and size
     S-->>A: Feed or HTML
     A->>D: Insert unique items
     U->>F: Prioritize items
@@ -63,20 +65,22 @@ API-origin resolution follows this order:
 3. on private-network hosts, call port `8000` on the same host; or
 4. use same-origin `/api` in deployed environments.
 
-The frontend server can forward `/api/*` to the origin configured by `BACKEND_ORIGIN`. The hardened behavior is to fail closed when that value is missing; API traffic must never be sent to an old tunnel or third-party host.
+The frontend server can forward `/api/*` to the origin configured by `BACKEND_ORIGIN`. It fails closed with `503` when that value is missing; API traffic is never sent to a built-in tunnel or third-party host.
+
+The inbox distinguishes SQLite-backed results from static demo fixtures and surfaces backend-load errors. A failed backend request must not be presented as successful live data. **Load Local Demo Data** on the development dashboard deliberately invokes the guarded `POST /demo/reset` operation with its required confirmation phrase, then reloads the backend dashboard.
 
 ## Frontend state boundaries
 
 | Feature | Source of truth | Persistence |
 |---|---|---|
 | Backend intelligence items | SQLite | database-dependent |
-| Login/signup | demo UI only | none |
-| NGO profile | React state | none |
+| Login/signup | demo UI only | no account |
+| NGO profile | browser `localStorage` | one browser profile |
 | Saved/ignored signals | React state | none |
 | Peer conversations | static fixtures and React state | none |
 | Onboarding recommendations | deterministic frontend mock | none |
 
-The `/app` layout's profile check is a navigation guard, not authentication or authorization.
+The `/app` layout's profile check is a navigation guard, not authentication or authorization. The custom profile controls frontend labels and language only. It is not supplied to analysis, ingestion, ranking, or digest requests; those backend rules and the fixed demo records remain tailored to Burundi Kids and WTG.
 
 ## Backend
 
@@ -88,7 +92,19 @@ The API allows local development origins, RFC1918 private-network origins, and `
 
 RSS ingestion uses a small default feed list when the request supplies no feed URLs. Each item is mapped to a normalized record, and the database's unique URL index handles duplicates.
 
-Web ingestion starts from curated pages unless the request supplies URLs. It can follow relevant same-domain links, optionally checks `robots.txt`, filters low-value/listing pages, and stores readable text from pages that match the configured NGO themes.
+Web ingestion starts from curated pages unless the request supplies URLs. It can follow relevant same-domain links, safely retrieves `robots.txt`, filters low-value/listing pages, and stores readable text from pages that match the configured NGO themes.
+
+RSS, page, and `robots.txt` requests share one guarded outbound client. It:
+
+- accepts only HTTP(S), ports 80/443, URLs up to 2,048 characters, and URLs without credentials, backslashes, or control characters;
+- resolves every fetch hostname and rejects the destination if any returned IPv4 or IPv6 address is private, loopback, link-local, multicast, reserved, unspecified, or otherwise non-global;
+- requires an exact-hostname `SOURCE_DOMAIN_ALLOWLIST` in production;
+- follows at most five redirects, validates every hop, rejects HTTPS-to-HTTP downgrade, and blocks cross-origin page redirects while robots enforcement is active;
+- uses connect/read inactivity timeouts, disables environment proxy inheritance, checks expected content types, and limits response bodies to 2 MB.
+
+These application checks reduce SSRF exposure but cannot pin the socket to the IP address that was validated. DNS can change between validation and the HTTP client's connection. Production infrastructure must therefore enforce an egress firewall that blocks loopback, private, link-local, multicast, reserved, unspecified, and cloud metadata destinations.
+
+The read timeout is an inactivity timeout rather than a strict wall-clock deadline. A source that continuously drip-feeds data can occupy a worker longer than the timeout while remaining below the 2 MB cap. A production proxy or worker supervisor must enforce an overall request deadline.
 
 ### Analysis and fallbacks
 
@@ -103,7 +119,7 @@ Without OpenAI, deterministic analysis logic:
 - produces template-based explanations and actions; and
 - produces template-based digest and analysis content.
 
-Translation tries OpenAI first when configured. If that path is unavailable and `TRANSLATION_PROVIDER=google`, the code attempts `deep-translator`'s Google Translate backend. Otherwise it returns clearly marked preview text without making an external translation request.
+Translation tries OpenAI when configured. If that path is unavailable, it returns clearly marked preview text without calling a secondary translation service. The dashboard identifies that output as a preview, not as translated content.
 
 This behavior keeps the demo usable but also hides provider failures from callers. Production observability should distinguish provider errors, fallback use, and model-quality failures.
 
@@ -136,10 +152,14 @@ flowchart TD
 
 The provided Dockerfile writes SQLite to `/tmp/items.db` by default. That path is ephemeral on most container platforms. A durable deployment must mount persistent storage or move to a managed relational database.
 
+Production sets `APP_ENV=production`, which requires an outbound-source allowlist and keeps the demo operations unavailable even if `ENABLE_DEMO_ENDPOINTS` is mistakenly true. Demo operations require both the enable flag and an explicit `dev`, `development`, `local`, or `test` environment; missing, staging, and unrecognized values fail closed. The checked-in example environment explicitly opts in for local demonstrations.
+
+Reproducibility boundaries are recorded in `.python-version`, `frontend/.nvmrc`, the npm `packageManager` field, `package-lock.json`, and hash-locked `requirements.txt`/`requirements-dev.txt`. The Docker image uses the same pinned Python runtime and runtime lock. GitHub Actions exercises dependency compatibility, backend tests, and frontend lint, typecheck, and build on pull requests and pushes to `master`.
+
 ## Trust boundaries and risks
 
 - API requests are unauthenticated.
-- caller-supplied scraping URLs cross a network trust boundary and currently need stronger SSRF protection before public exposure.
+- caller-supplied source URLs cross a network trust boundary; application checks require defense in depth through an infrastructure egress firewall.
 - scraped text and model output are untrusted content.
 - model-generated funding deadlines and recommendations require source verification.
 - third-party feeds and sites can change format, fail, or block access.
@@ -152,9 +172,9 @@ See [Security](../SECURITY.md) and [Deployment](DEPLOYMENT.md) for operational c
 The next architectural steps should be driven by real usage, not added pre-emptively:
 
 1. add authentication and organization-level authorization;
-2. restrict ingestion to an approved-source registry and add SSRF defenses;
+2. replace the environment allowlist with an administered source registry and egress policy;
 3. move persistence to a managed database with migrations and backups;
 4. run ingestion and analysis as observable background jobs;
 5. add source provenance, reviewer decisions, and audit history;
 6. evaluate relevance, deadline extraction, and translation against a labelled test set; and
-7. add deployment CI, secret scanning, dependency updates, and structured monitoring.
+7. extend the current CI with deployment promotion, secret scanning, automated dependency updates, and structured monitoring.

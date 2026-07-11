@@ -7,7 +7,7 @@
 - Content type: `application/json`
 - Authentication: none
 
-The API is designed for a controlled demo. Do not expose it to untrusted clients in its current form.
+The API is designed for a controlled demo. Do not expose it to untrusted clients without authentication, rate limits, an outbound egress firewall, and the deployment controls described below.
 
 ## Health
 
@@ -34,7 +34,8 @@ Returns API, provider, and database state.
 
 ### `POST /ingest/rss`
 
-Ingests the default feeds when the body is omitted or `feeds` is empty.
+Ingests the default feeds when the body is omitted or `feeds` is `null`. An explicit
+empty list performs no network requests and returns an empty successful result.
 
 ```json
 {
@@ -55,7 +56,8 @@ At most 20 feed URLs can be supplied. Feed-specific failures are returned in the
 
 ### `POST /ingest/web`
 
-Scrapes curated seed pages when `urls` is omitted. The service can follow relevant links on the same domain.
+Scrapes curated seed pages when `urls` is omitted or `null`. An explicit empty list
+performs no network requests. The service can follow relevant links on the same domain.
 
 ```json
 {
@@ -72,7 +74,7 @@ Constraints:
 
 - at most 20 seed URLs;
 - `max_pages` from 1 to 80; and
-- only HTTP(S) URLs with a hostname are accepted by the current normalizer.
+- only guarded public HTTP(S) destinations are accepted.
 
 ```json
 {
@@ -82,7 +84,17 @@ Constraints:
 }
 ```
 
-The current URL checks are insufficient for an internet-facing service. See [Security](../SECURITY.md).
+RSS, web-page, discovered-link, redirect, and `robots.txt` destinations use the same outbound rules:
+
+- URL length is at most 2,048 characters;
+- URLs with credentials, backslashes, control characters, a missing hostname, or a scheme other than HTTP(S) are rejected;
+- only ports 80 and 443 are permitted;
+- all resolved IPv4 and IPv6 addresses must be globally routable and must not be private, loopback, link-local, multicast, reserved, or unspecified;
+- up to five redirects are allowed, with every hop revalidated and HTTPS-to-HTTP downgrade rejected; web scraping also rejects cross-origin redirects while robots enforcement is enabled;
+- responses use connect/read inactivity timeouts, expected content types, and a 2 MB body limit; and
+- environment proxy settings are not inherited.
+
+When `APP_ENV=production` or `APP_ENV=prod`, `SOURCE_DOMAIN_ALLOWLIST` is required and fetched hostnames must match an entry exactly; list each allowed subdomain and redirect host separately. Stored RSS article links are public-address validated but are not fetched and therefore do not need to be allowlisted. Source failures are isolated in the normal `errors` array. These checks do not eliminate a validate-then-connect DNS-rebinding race or impose a strict whole-response deadline, so an internet-facing deployment still requires a network egress firewall and an overall upstream-request timeout. See [Security](../SECURITY.md).
 
 ## Items
 
@@ -115,7 +127,7 @@ Returns one item. `item_id` must be a positive integer. A missing item returns `
 
 ### `GET /funding`
 
-Returns a JSON array of likely funding items. Items with detected deadlines are ordered by earliest deadline, with missing deadlines last.
+Returns a JSON array of likely funding items. Analyzed items use their stored analysis flag; keyword fallback is used only for items that do not yet have a relevance score. Items with detected deadlines are ordered by earliest deadline, with missing deadlines last.
 
 | Parameter | Type | Default | Notes |
 |---|---:|---:|---|
@@ -202,28 +214,44 @@ The text must contain 1–12,000 characters.
 }
 ```
 
-Provider order is OpenAI when configured, then the Google Translate fallback only when `TRANSLATION_PROVIDER=google`, then local preview text. A successful response with a preview quality note does not mean translation occurred.
+Translation uses OpenAI when configured and otherwise returns local preview text without calling a secondary translation service. Preview text begins with a `[Translation preview: ...]` marker and the quality note explains that no provider completed the request. HTTP `200` with a preview does not mean translation occurred; clients must preserve that distinction.
 
 ## Demo operations
 
+Both routes are disabled by default. They are available only when `ENABLE_DEMO_ENDPOINTS=true` and `APP_ENV` is explicitly `dev`, `development`, `local`, or `test`. Missing, staging, production, and unrecognized environments return `404` even if the enable flag is true. The repository's `.env.example` opts in for a disposable local demo.
+
 ### `POST /demo/reset`
 
-**Destructive.** Deletes every item in the configured database, inserts five fixed demo items, analyzes them, and returns counts.
+**Destructive.** Deletes every item in the configured database, inserts five fixed Burundi Kids/WTG demo items, analyzes them, and returns counts. The local frontend dashboard's **Load Local Demo Data** control calls this route and then refreshes the displayed backend data.
 
-Do not enable this route in a production deployment.
+```json
+{
+  "confirmation": "replace-all-items"
+}
+```
+
+The exact JSON confirmation is required after the environment guard. This also prevents a simple cross-origin form POST from resetting the local database.
+
+The custom frontend demo profile is not sent with this request and does not change the fixtures or backend analysis.
 
 ### `POST /demo/run`
 
 Runs the default RSS ingestion, curated web scraping, analysis of up to 50 items, and digest generation synchronously. External sources can make the request slow or partially fail.
+
+```json
+{
+  "confirmation": "run-live-ingestion"
+}
+```
 
 ## Common responses
 
 | Status | Meaning |
 |---:|---|
 | `200` | request completed, including ingestion operations with per-source errors |
-| `400` | application limit exceeded, such as too many feeds or seed URLs |
-| `404` | requested item does not exist |
+| `400` | application limit exceeded or a demo confirmation is missing/incorrect |
+| `404` | requested item does not exist, or a demo operation is disabled |
 | `422` | request body, path, or query validation failed |
 | `500` | unhandled internal or external-service failure |
 
-Provider failures are often converted into fallback output rather than an error response. Translation can call a Google Translate service only when `TRANSLATION_PROVIDER=google`. Callers that need strict provider or data-processing guarantees must add an explicit policy and observability layer.
+Provider failures are often converted into fallback output rather than an error response. The frontend labels preview output separately and labels whether inbox signals came from the backend or static demo data; API consumers must implement equivalent checks if that provenance matters.

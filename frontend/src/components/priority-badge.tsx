@@ -1,9 +1,4 @@
-import {
-  importanceLabel,
-  translate,
-  type ImportanceKey,
-  typeLabel,
-} from "@/lib/i18n";
+import { importanceLabel, translate, type ImportanceKey, typeLabel } from "@/lib/i18n";
 import type { Priority } from "@/lib/types";
 
 const map: Record<Priority, { dot: string; cls: string }> = {
@@ -21,13 +16,7 @@ const map: Record<Priority, { dot: string; cls: string }> = {
   },
 };
 
-export function PriorityBadge({
-  priority,
-  language,
-}: {
-  priority: Priority;
-  language?: string;
-}) {
+export function PriorityBadge({ priority, language }: { priority: Priority; language?: string }) {
   const m = map[priority];
   const labelKey: ImportanceKey = priority === "relevant" ? "important" : priority;
   return (
@@ -57,13 +46,7 @@ export function TypeBadge({ type, language }: { type: string; language?: string 
 
 export type AiImportance = "urgent" | "important" | "medium" | "low";
 
-export function AiImportanceBadge({
-  level,
-  language,
-}: {
-  level: AiImportance;
-  language?: string;
-}) {
+export function AiImportanceBadge({ level, language }: { level: AiImportance; language?: string }) {
   const tones: Record<AiImportance, string> = {
     urgent: "bg-rose-50 text-rose-700 border-rose-200",
     important: "bg-amber-50 text-amber-800 border-amber-200",

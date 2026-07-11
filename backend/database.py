@@ -17,7 +17,6 @@ FUNDING_KEYWORDS = [
     "application",
     "bmz",
     "stiftung",
-    "ngo",
     "project funding",
     "foundation",
     "small grants",
@@ -355,11 +354,11 @@ def _build_item_filters(
 
 
 def _funding_conditions() -> tuple[str, list[Any]]:
-    conditions = ["is_funding_opportunity = 1"]
+    keyword_conditions: list[str] = []
     parameters: list[Any] = []
     for keyword in FUNDING_KEYWORDS:
         pattern = f"%{keyword.lower()}%"
-        conditions.append(
+        keyword_conditions.append(
             """
             (
                 lower(title) LIKE ?
@@ -370,7 +369,11 @@ def _funding_conditions() -> tuple[str, list[Any]]:
             """
         )
         parameters.extend([pattern, pattern, pattern, pattern])
-    return " OR ".join(conditions), parameters
+    fallback = " OR ".join(keyword_conditions)
+    return (
+        "is_funding_opportunity = 1 "
+        f"OR (relevance_score IS NULL AND ({fallback}))"
+    ), parameters
 
 
 def update_item_fields(

@@ -96,6 +96,10 @@ class ScrapeResult(BaseModel):
     errors: list[dict[str, Any]]
 
 
+class DemoOperationRequest(BaseModel):
+    confirmation: str = Field(min_length=1, max_length=64)
+
+
 class TranslateRequest(BaseModel):
     target_language: str
 

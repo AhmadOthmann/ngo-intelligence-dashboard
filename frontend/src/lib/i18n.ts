@@ -8,6 +8,7 @@ type TranslationKey =
   | "canYouApply"
   | "chooseImportance"
   | "deadline"
+  | "dashboard"
   | "enhanced"
   | "eligibility"
   | "filter"
@@ -73,6 +74,7 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string>> = {
     cancel: "Cancel",
     canYouApply: "Can you apply?",
     chooseImportance: "Please choose how important this is for your organization.",
+    dashboard: "Dashboard",
     deadline: "Deadline",
     enhanced: "Enhanced",
     eligibility: "Eligibility",
@@ -91,7 +93,8 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string>> = {
     loading: "Loading...",
     newSignal: "new signal",
     newSignals: "new signals",
-    noSignals: "No signals match your filters yet. AI keeps learning from what you save and ignore.",
+    noSignals:
+      "No signals match your filters yet. AI keeps learning from what you save and ignore.",
     originalLanguage: "Original language",
     peerActivity: "Peer activity",
     peerChat: "Peer Chat",
@@ -135,6 +138,7 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string>> = {
     cancel: "Annuler",
     canYouApply: "Pouvez-vous postuler ?",
     chooseImportance: "Choisissez l'importance pour votre organisation.",
+    dashboard: "Tableau de bord",
     deadline: "Date limite",
     enhanced: "Avancee",
     eligibility: "Eligibilite",
@@ -199,6 +203,7 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string>> = {
     cancel: "Abbrechen",
     canYouApply: "Koennen Sie sich bewerben?",
     chooseImportance: "Bitte waehlen Sie, wie wichtig dies fuer Ihre Organisation ist.",
+    dashboard: "Dashboard",
     deadline: "Frist",
     enhanced: "Erweitert",
     eligibility: "Foerderfaehigkeit",
@@ -239,8 +244,7 @@ const DICTIONARY: Record<Locale, Record<TranslationKey, string>> = {
     signalInbox: "Signal-Postfach",
     signals: "Signale",
     sort: "Sortierung",
-    sourceErrorFallback:
-      "Beispielsignale werden angezeigt, bis Live-Quellen verfuegbar sind.",
+    sourceErrorFallback: "Beispielsignale werden angezeigt, bis Live-Quellen verfuegbar sind.",
     sourceExcerpt: "Quellenauszug",
     sourceIssue: "Quellenproblem",
     sourceIssues: "Quellenprobleme",
@@ -332,8 +336,10 @@ const IMPORTANCE_LABELS: Record<Locale, Record<ImportanceKey, string>> = {
 
 export function localeFromLanguage(language?: string | null): Locale {
   const normalized = language?.trim().toLowerCase() ?? "";
-  if (normalized.startsWith("german") || normalized === "de" || normalized === "deutsch") return "de";
-  if (normalized.startsWith("french") || normalized === "fr" || normalized.startsWith("franc")) return "fr";
+  if (normalized.startsWith("german") || normalized === "de" || normalized === "deutsch")
+    return "de";
+  if (normalized.startsWith("french") || normalized === "fr" || normalized.startsWith("franc"))
+    return "fr";
   return "en";
 }
 
@@ -360,10 +366,7 @@ export function sortLabel(language: string | undefined | null, key: SortKey): st
   return SORT_LABELS[localeFromLanguage(language)][key];
 }
 
-export function importanceLabel(
-  language: string | undefined | null,
-  key: ImportanceKey,
-): string {
+export function importanceLabel(language: string | undefined | null, key: ImportanceKey): string {
   return IMPORTANCE_LABELS[localeFromLanguage(language)][key];
 }
 
@@ -383,7 +386,10 @@ export function languageOptionLabel(language: string | undefined | null, option:
   return option;
 }
 
-export function greeting(language: string | undefined | null, hour = new Date().getHours()): string {
+export function greeting(
+  language: string | undefined | null,
+  hour = new Date().getHours(),
+): string {
   const locale = localeFromLanguage(language);
   if (locale === "fr") return hour < 12 ? "Bonjour" : hour < 18 ? "Bon apres-midi" : "Bonsoir";
   if (locale === "de") return hour < 12 ? "Guten Morgen" : hour < 18 ? "Guten Tag" : "Guten Abend";
@@ -395,28 +401,28 @@ const KNOWN_LABELS: Record<Locale, Record<string, string>> = {
   fr: {
     "Added to digest": "Ajoute au briefing",
     "Agriculture and consumer protection": "Agriculture et protection des consommateurs",
-    "Africa": "Afrique",
+    Africa: "Afrique",
     "Animal trade": "Commerce animal",
     "Animal welfare": "Bien-etre animal",
     "Animal welfare funding": "Financement du bien-etre animal",
-    "Any": "Toute echeance",
-    "Applying": "Candidature en cours",
-    "Archived": "Archive",
-    "BMZ": "BMZ",
+    Any: "Toute echeance",
+    Applying: "Candidature en cours",
+    Archived: "Archive",
+    BMZ: "BMZ",
     "Children and youth": "Enfants et jeunes",
     "Climate and environment": "Climat et environnement",
     "Contacted peer NGO": "ONG pair contactee",
     "Development cooperation": "Cooperation au developpement",
     "Detected AI topics": "Themes detectes par l'IA",
     "Detected regions": "Regions detectees",
-    "Education": "Education",
+    Education: "Education",
     "Education funding": "Financement de l'education",
     "Emails and newsletters": "Emails et newsletters",
     "Emergency aid": "Aide d'urgence",
     "East Africa": "Afrique de l'Est",
     "Field Intelligence": "Intelligence terrain",
-    "Foundations": "Fondations",
-    "Funding": "Financement",
+    Foundations: "Fondations",
+    Funding: "Financement",
     "Funding calls": "Appels a financement",
     "Funding opportunities": "Opportunites de financement",
     "GBV prevention": "Prevention des VBG",
@@ -427,41 +433,41 @@ const KNOWN_LABELS: Record<Locale, Record<string, string>> = {
     "Google Alerts": "Alertes Google",
     "Girls and women": "Filles et femmes",
     "Girls' empowerment": "Autonomisation des filles",
-    "Health": "Sante",
+    Health: "Sante",
     "Health funding": "Financement de la sante",
     "Human rights": "Droits humains",
     "Humanitarian aid": "Aide humanitaire",
-    "international": "international",
+    international: "international",
     "international NGO": "ONG internationale",
     "Local partner required": "Partenaire local requis",
     "Local security updates": "Alertes de securite locales",
-    "local": "local",
+    local: "local",
     "local NGO": "ONG locale",
     "Long-term planning": "Planification long terme",
     "Menstrual hygiene": "Hygiene menstruelle",
-    "national": "national",
-    "News": "Actualites",
+    national: "national",
+    News: "Actualites",
     "News articles": "Articles d'actualite",
     "NGO reports": "Rapports d'ONG",
     "Peer Signals": "Signaux pairs",
     "Peer-saved resources": "Ressources sauvegardees par des pairs",
     "partner application": "candidature en partenariat",
     "Public posts from similar NGOs": "Publications publiques d'ONG similaires",
-    "Rabies": "Rage",
+    Rabies: "Rage",
     "Refugees and migration": "Refugies et migration",
-    "Reports": "Rapports",
-    "Reviewing": "En revue",
+    Reports: "Rapports",
+    Reviewing: "En revue",
     "RSS feeds": "Flux RSS",
     "Rural development": "Developpement rural",
-    "Saved": "Sauvegarde",
+    Saved: "Sauvegarde",
     "Selected topics": "Themes selectionnes",
     "Small project funding": "Financement de petits projets",
     "Small NGO funding": "Financement des petites ONG",
     "Social media animal abuse": "Maltraitance animale sur les reseaux sociaux",
-    "Sources": "Sources",
-    "Tags": "Tags",
+    Sources: "Sources",
+    Tags: "Tags",
     "Vocational training": "Formation professionnelle",
-    "Watchlist": "Liste de veille",
+    Watchlist: "Liste de veille",
     "Wildlife protection": "Protection de la faune",
     "Women and girls": "Femmes et filles",
     "Within 3 months": "Dans les 3 mois",
@@ -470,28 +476,28 @@ const KNOWN_LABELS: Record<Locale, Record<string, string>> = {
   de: {
     "Added to digest": "Zum Briefing hinzugefuegt",
     "Agriculture and consumer protection": "Landwirtschaft und Verbraucherschutz",
-    "Africa": "Afrika",
+    Africa: "Afrika",
     "Animal trade": "Tierhandel",
     "Animal welfare": "Tierschutz",
     "Animal welfare funding": "Tierschutz-Foerderung",
-    "Any": "Beliebig",
-    "Applying": "Antrag in Arbeit",
-    "Archived": "Archiviert",
-    "BMZ": "BMZ",
+    Any: "Beliebig",
+    Applying: "Antrag in Arbeit",
+    Archived: "Archiviert",
+    BMZ: "BMZ",
     "Children and youth": "Kinder und Jugendliche",
     "Climate and environment": "Klima und Umwelt",
     "Contacted peer NGO": "Peer-NGO kontaktiert",
     "Development cooperation": "Entwicklungszusammenarbeit",
     "Detected AI topics": "Von KI erkannte Themen",
     "Detected regions": "Erkannte Regionen",
-    "Education": "Bildung",
+    Education: "Bildung",
     "Education funding": "Bildungsfoerderung",
     "Emails and newsletters": "E-Mails und Newsletter",
     "Emergency aid": "Nothilfe",
     "East Africa": "Ostafrika",
     "Field Intelligence": "Feldinformationen",
-    "Foundations": "Stiftungen",
-    "Funding": "Foerderung",
+    Foundations: "Stiftungen",
+    Funding: "Foerderung",
     "Funding calls": "Foerderaufrufe",
     "Funding opportunities": "Foerdermoeglichkeiten",
     "GBV prevention": "GBV-Praevention",
@@ -502,41 +508,41 @@ const KNOWN_LABELS: Record<Locale, Record<string, string>> = {
     "Google Alerts": "Google Alerts",
     "Girls and women": "Maedchen und Frauen",
     "Girls' empowerment": "Staerkung von Maedchen",
-    "Health": "Gesundheit",
+    Health: "Gesundheit",
     "Health funding": "Gesundheitsfoerderung",
     "Human rights": "Menschenrechte",
     "Humanitarian aid": "Humanitaere Hilfe",
-    "international": "international",
+    international: "international",
     "international NGO": "Internationale NGO",
     "Local partner required": "Lokaler Partner erforderlich",
     "Local security updates": "Lokale Sicherheitsupdates",
-    "local": "lokal",
+    local: "lokal",
     "local NGO": "Lokale NGO",
     "Long-term planning": "Langfristige Planung",
     "Menstrual hygiene": "Menstruationshygiene",
-    "national": "national",
-    "News": "Nachrichten",
+    national: "national",
+    News: "Nachrichten",
     "News articles": "Nachrichtenartikel",
     "NGO reports": "NGO-Berichte",
     "Peer Signals": "Peer-Signale",
     "Peer-saved resources": "Von Peers gespeicherte Ressourcen",
     "partner application": "Partnerantrag",
     "Public posts from similar NGOs": "Oeffentliche Beitraege aehnlicher NGOs",
-    "Rabies": "Tollwut",
+    Rabies: "Tollwut",
     "Refugees and migration": "Gefluechtete und Migration",
-    "Reports": "Berichte",
-    "Reviewing": "In Pruefung",
+    Reports: "Berichte",
+    Reviewing: "In Pruefung",
     "RSS feeds": "RSS-Feeds",
     "Rural development": "Laendliche Entwicklung",
-    "Saved": "Gespeichert",
+    Saved: "Gespeichert",
     "Selected topics": "Ausgewaehlte Themen",
     "Small project funding": "Kleinprojektfoerderung",
     "Small NGO funding": "Foerderung fuer kleine NGOs",
     "Social media animal abuse": "Tierquaelerei in sozialen Medien",
-    "Sources": "Quellen",
-    "Tags": "Tags",
+    Sources: "Quellen",
+    Tags: "Tags",
     "Vocational training": "Berufsausbildung",
-    "Watchlist": "Beobachtungsliste",
+    Watchlist: "Beobachtungsliste",
     "Wildlife protection": "Wildtierschutz",
     "Women and girls": "Frauen und Maedchen",
     "Within 3 months": "Innerhalb von 3 Monaten",

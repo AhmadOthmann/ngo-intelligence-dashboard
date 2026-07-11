@@ -18,7 +18,10 @@ export function generateNgoProfile(input: {
     .filter(Boolean);
   return {
     focusAreas: Array.from(new Set([...input.topics.slice(0, 6), "small NGO funding"])),
-    regions: Array.from(new Set([input.country, ...kw.filter((k) => /^[A-Z]/.test(k))])).slice(0, 6),
+    regions: Array.from(new Set([input.country, ...kw.filter((k) => /^[A-Z]/.test(k))])).slice(
+      0,
+      6,
+    ),
     suggestedKeywords: [
       `${input.topics[0] ?? "education"} ${input.country}`,
       "school attendance",

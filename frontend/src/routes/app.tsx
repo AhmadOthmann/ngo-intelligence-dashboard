@@ -1,7 +1,8 @@
 import { Link, Outlet, createFileRoute, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useEffect } from "react";
-import { Inbox, MessageCircle, Tag, User } from "lucide-react";
+import { Inbox, LayoutDashboard, MessageCircle, Tag, User } from "lucide-react";
 import { Logo } from "@/components/logo";
+import { DemoNotice } from "@/components/demo-notice";
 import { useAppState } from "@/lib/app-state";
 import { translate } from "@/lib/i18n";
 
@@ -10,6 +11,7 @@ export const Route = createFileRoute("/app")({
 });
 
 const NAV = [
+  { to: "/app/dashboard", labelKey: "dashboard", icon: LayoutDashboard },
   { to: "/app/inbox", labelKey: "signalInbox", icon: Inbox },
   { to: "/app/saved", labelKey: "tags", icon: Tag },
   { to: "/app/chat", labelKey: "peerChat", icon: MessageCircle },
@@ -17,15 +19,23 @@ const NAV = [
 ] as const;
 
 function AppLayout() {
-  const { profile } = useAppState();
+  const { profile, profileReady } = useAppState();
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
   useEffect(() => {
-    if (!profile) {
+    if (profileReady && !profile) {
       void navigate({ to: "/signup", replace: true });
     }
-  }, [profile, navigate]);
+  }, [profile, profileReady, navigate]);
+
+  if (!profileReady) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background text-sm text-muted-foreground">
+        Loading demo profile...
+      </div>
+    );
+  }
 
   if (!profile) return null;
 
@@ -43,17 +53,17 @@ function AppLayout() {
                 key={n.to}
                 to={n.to}
                 className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition ${
-                  active
-                    ? "bg-white text-primary shadow-sm"
-                    : "text-white/85 hover:bg-white/10"
+                  active ? "bg-white text-primary shadow-sm" : "text-white/85 hover:bg-white/10"
                 }`}
               >
                 <n.icon className="h-4 w-4" /> {translate(profile.language, n.labelKey)}
+                {n.to === "/app/chat" ? " (demo)" : ""}
               </Link>
             );
           })}
         </nav>
         <div className="border-t border-white/10 px-5 py-4 text-xs text-white/75">
+          <div className="mb-1 font-medium text-amber-200">Demo workspace</div>
           <div className="font-medium text-white">
             {profile?.name ?? translate(profile.language, "yourNgo")}
           </div>
@@ -80,10 +90,12 @@ function AppLayout() {
                 }`}
               >
                 <n.icon className="h-3.5 w-3.5" /> {translate(profile.language, n.labelKey)}
+                {n.to === "/app/chat" ? " (demo)" : ""}
               </Link>
             );
           })}
         </nav>
+        <DemoNotice />
         <main className="flex-1 overflow-auto bg-background">
           <Outlet />
         </main>

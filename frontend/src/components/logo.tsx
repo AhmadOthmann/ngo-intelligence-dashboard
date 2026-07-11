@@ -18,9 +18,7 @@ export function Logo({
         />
       </div>
       <div className="leading-tight">
-        <div className={`text-base font-semibold tracking-tight ${titleClass}`}>
-          Impact Atlas
-        </div>
+        <div className={`text-base font-semibold tracking-tight ${titleClass}`}>Impact Atlas</div>
         <div className={`text-[10px] uppercase tracking-wider ${subtitleClass}`}>
           NGO intelligence
         </div>

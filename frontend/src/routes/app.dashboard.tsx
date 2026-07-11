@@ -7,6 +7,7 @@ import {
   Languages,
   Loader2,
   RefreshCw,
+  RotateCcw,
   Search,
   Wand2,
   type LucideIcon,
@@ -30,6 +31,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useAppState } from "@/lib/app-state";
+import { validHttpUrl } from "@/lib/urls";
 import {
   analyzeAll,
   analyzeItem,
@@ -38,6 +41,7 @@ import {
   getFunding,
   getItemsPage,
   ingestRss,
+  resetDemo,
   scrapeWeb,
   translateItem,
   type ApiStatus,
@@ -65,16 +69,14 @@ const CATEGORY_OPTIONS = [
   { value: "Other", label: "Other" },
 ] as const;
 const LANGUAGE_OPTIONS = ["German", "French", "English"] as const;
+const SHOW_LOCAL_DEMO_CONTROL =
+  import.meta.env.DEV || import.meta.env.VITE_ENABLE_DEMO_CONTROLS === "true";
 
 type CategoryFilter = (typeof CATEGORY_OPTIONS)[number]["value"];
-type ActionState =
-  | "refresh"
-  | "update"
-  | "analyze-item"
-  | "translate"
-  | null;
+type ActionState = "refresh" | "update" | "load-demo" | "analyze-item" | "translate" | null;
 
 function DashboardPage() {
+  const { refreshSignals } = useAppState();
   const [status, setStatus] = useState<ApiStatus | null>(null);
   const [items, setItems] = useState<BackendItem[]>([]);
   const [totalItems, setTotalItems] = useState(0);
@@ -84,16 +86,42 @@ function DashboardPage() {
   const [q, setQ] = useState("");
   const [category, setCategory] = useState<CategoryFilter>("all");
   const [fundingOnly, setFundingOnly] = useState(false);
-  const [targetLanguage, setTargetLanguage] =
-    useState<(typeof LANGUAGE_OPTIONS)[number]>("German");
+  const [targetLanguage, setTargetLanguage] = useState<(typeof LANGUAGE_OPTIONS)[number]>("German");
   const [action, setAction] = useState<ActionState>("refresh");
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [noticeTone, setNoticeTone] = useState<"success" | "warning">("success");
 
   const selectedItem = useMemo(() => {
     const allVisibleItems = uniqueItems([...items, ...fundingItems]);
     return allVisibleItems.find((item) => item.id === selectedId) ?? allVisibleItems[0] ?? null;
   }, [fundingItems, items, selectedId]);
+  const selectedSourceUrl = validHttpUrl(selectedItem?.url);
+
+  async function fetchDashboard(filters = { q, category, fundingOnly }) {
+    const [nextStatus, nextItems, nextFunding, nextDigest] = await Promise.all([
+      getApiStatus(),
+      getItemsPage({
+        q: filters.q,
+        category: filters.category === "all" ? undefined : filters.category,
+        fundingOnly: filters.fundingOnly,
+        limit: PAGE_LIMIT,
+        offset: 0,
+      }),
+      getFunding(PAGE_LIMIT),
+      getDigest(),
+    ]);
+
+    const visibleItems = uniqueItems([...nextItems.items, ...nextFunding]);
+    setStatus(nextStatus);
+    setItems(nextItems.items);
+    setTotalItems(nextItems.count);
+    setFundingItems(nextFunding);
+    setDigest(nextDigest);
+    setSelectedId((current) =>
+      visibleItems.some((item) => item.id === current) ? current : (visibleItems[0]?.id ?? null),
+    );
+  }
 
   async function loadDashboard(
     filters = { q, category, fundingOnly },
@@ -102,28 +130,7 @@ function DashboardPage() {
     setAction(nextAction);
     setError(null);
     try {
-      const [nextStatus, nextItems, nextFunding, nextDigest] = await Promise.all([
-        getApiStatus(),
-        getItemsPage({
-          q: filters.q,
-          category: filters.category === "all" ? undefined : filters.category,
-          fundingOnly: filters.fundingOnly,
-          limit: PAGE_LIMIT,
-          offset: 0,
-        }),
-        getFunding(PAGE_LIMIT),
-        getDigest(),
-      ]);
-
-      const visibleItems = uniqueItems([...nextItems.items, ...nextFunding]);
-      setStatus(nextStatus);
-      setItems(nextItems.items);
-      setTotalItems(nextItems.count);
-      setFundingItems(nextFunding);
-      setDigest(nextDigest);
-      setSelectedId((current) =>
-        visibleItems.some((item) => item.id === current) ? current : visibleItems[0]?.id ?? null,
-      );
+      await fetchDashboard(filters);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Dashboard data could not be loaded");
     } finally {
@@ -133,10 +140,13 @@ function DashboardPage() {
 
   useEffect(() => {
     void loadDashboard({ q: "", category: "all", fundingOnly: false });
+    // The initial route load is intentionally independent of editable filter state.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function handleUpdateIntelligence() {
     setNotice(null);
+    setNoticeTone("success");
     setError(null);
     setAction("update");
     try {
@@ -152,9 +162,39 @@ function DashboardPage() {
           issueCount ? `, ${issueCount} source issue(s)` : ""
         }.`,
       );
-      await loadDashboard(undefined, "refresh");
+      await fetchDashboard();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not update intelligence");
+    } finally {
+      setAction(null);
+    }
+  }
+
+  async function handleLoadDemoData() {
+    const confirmed = window.confirm(
+      "Replace every backend intelligence item with the fixed demo dataset? Use this only with a local development backend.",
+    );
+    if (!confirmed) return;
+
+    setNotice(null);
+    setNoticeTone("success");
+    setError(null);
+    setAction("load-demo");
+    try {
+      const result = await resetDemo();
+      await Promise.all([
+        fetchDashboard({ q: "", category: "all", fundingOnly: false }),
+        refreshSignals(),
+      ]);
+      setQ("");
+      setCategory("all");
+      setFundingOnly(false);
+      setNotice(
+        `Loaded ${result.created} demo signal${result.created === 1 ? "" : "s"}; ${result.analyzed} prioritized.`,
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Demo data could not be loaded");
+    } finally {
       setAction(null);
     }
   }
@@ -162,6 +202,7 @@ function DashboardPage() {
   async function handleAnalyzeSelected() {
     if (!selectedItem) return;
     setNotice(null);
+    setNoticeTone("success");
     setError(null);
     setAction("analyze-item");
     try {
@@ -183,7 +224,15 @@ function DashboardPage() {
     try {
       const updated = await translateItem(selectedItem.id, targetLanguage);
       updateVisibleItem(updated);
-      setNotice(`Signal translated to ${targetLanguage}.`);
+      if (isTranslationPreview(updated.translated_text)) {
+        setNoticeTone("warning");
+        setNotice(
+          "No translation provider is configured. This is preview text only; the signal was not translated.",
+        );
+      } else {
+        setNoticeTone("success");
+        setNotice(`Signal translated to ${targetLanguage}.`);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Translation failed");
     } finally {
@@ -192,19 +241,13 @@ function DashboardPage() {
   }
 
   function updateVisibleItem(updated: BackendItem) {
-    setItems((current) =>
-      current.map((item) => (item.id === updated.id ? updated : item)),
-    );
-    setFundingItems((current) =>
-      current.map((item) => (item.id === updated.id ? updated : item)),
-    );
+    setItems((current) => current.map((item) => (item.id === updated.id ? updated : item)));
+    setFundingItems((current) => current.map((item) => (item.id === updated.id ? updated : item)));
     setDigest((current) =>
       current
         ? {
             ...current,
-            top_items: current.top_items.map((item) =>
-              item.id === updated.id ? updated : item,
-            ),
+            top_items: current.top_items.map((item) => (item.id === updated.id ? updated : item)),
             funding_items: current.funding_items.map((item) =>
               item.id === updated.id ? updated : item,
             ),
@@ -225,10 +268,22 @@ function DashboardPage() {
             Impact Atlas Dashboard
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            News, funding, and action briefings for Burundi Kids and WTG.
+            Backend demo briefings are fixed to Burundi Kids and WTG; the browser profile does not
+            retarget them.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          {SHOW_LOCAL_DEMO_CONTROL && (
+            <Button
+              variant="outline"
+              onClick={() => void handleLoadDemoData()}
+              disabled={isBusy}
+              title="Local development only: replace backend items with the fixed demo dataset"
+            >
+              {action === "load-demo" ? <Loader2 className="animate-spin" /> : <RotateCcw />}
+              Load Local Demo Data
+            </Button>
+          )}
           <Button onClick={() => void handleUpdateIntelligence()} disabled={isBusy}>
             {action === "update" ? <Loader2 className="animate-spin" /> : <Wand2 />}
             Update Intelligence
@@ -252,13 +307,7 @@ function DashboardPage() {
         <Metric
           icon={Wand2}
           label="Analysis"
-          value={
-            status
-              ? status.openai_configured
-                ? "Enhanced"
-                : "Basic"
-              : "Unknown"
-          }
+          value={status ? (status.openai_configured ? "Enhanced" : "Basic") : "Unknown"}
         />
       </div>
 
@@ -267,7 +316,9 @@ function DashboardPage() {
           className={`rounded-lg border px-3 py-2 text-sm ${
             error
               ? "border-destructive/30 bg-destructive/10 text-destructive"
-              : "border-emerald-200 bg-emerald-50 text-emerald-900"
+              : noticeTone === "warning"
+                ? "border-amber-300 bg-amber-50 text-amber-950"
+                : "border-emerald-200 bg-emerald-50 text-emerald-900"
           }`}
         >
           {error ?? notice}
@@ -293,7 +344,10 @@ function DashboardPage() {
                   className="pl-9"
                 />
               </div>
-              <Select value={category} onValueChange={(value) => setCategory(value as CategoryFilter)}>
+              <Select
+                value={category}
+                onValueChange={(value) => setCategory(value as CategoryFilter)}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -331,7 +385,9 @@ function DashboardPage() {
                   <TableHead>Title</TableHead>
                   <TableHead className="hidden w-32 md:table-cell">Category</TableHead>
                   <TableHead className="hidden w-24 md:table-cell">Score</TableHead>
-                  <TableHead className="hidden min-w-[180px] lg:table-cell">Recommended Action</TableHead>
+                  <TableHead className="hidden min-w-[180px] lg:table-cell">
+                    Recommended Action
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -356,9 +412,7 @@ function DashboardPage() {
                           {item.title}
                         </button>
                         <div className="mt-1 flex flex-wrap gap-1">
-                          {item.is_funding_opportunity && (
-                            <Badge variant="outline">Funding</Badge>
-                          )}
+                          {item.is_funding_opportunity && <Badge variant="outline">Funding</Badge>}
                           {item.target_org && <Badge variant="outline">{item.target_org}</Badge>}
                         </div>
                       </TableCell>
@@ -406,7 +460,9 @@ function DashboardPage() {
                         {item.title}
                       </span>
                       <span className="mt-1 block text-xs text-muted-foreground">
-                        {item.deadline ? `Deadline ${formatDate(item.deadline)}` : categoryLabel(item.category)}
+                        {item.deadline
+                          ? `Deadline ${formatDate(item.deadline)}`
+                          : categoryLabel(item.category)}
                       </span>
                     </span>
                     <Badge variant="outline">{formatScore(item.relevance_score)}</Badge>
@@ -429,13 +485,11 @@ function DashboardPage() {
               {digest?.headline ?? "Briefing unavailable"}
             </h3>
             <p className="mt-2 text-sm leading-6 text-muted-foreground">
-              {digest?.executive_summary ?? "Create a briefing after updating and prioritizing sources."}
+              {digest?.executive_summary ??
+                "Create a briefing after updating and prioritizing sources."}
             </p>
             <DigestList title="Top priorities" items={digest?.top_priorities ?? []} />
-            <DigestList
-              title="Funding opportunities"
-              items={digest?.funding_opportunities ?? []}
-            />
+            <DigestList title="Funding opportunities" items={digest?.funding_opportunities ?? []} />
             <DigestList title="Recommended actions" items={digest?.recommended_actions ?? []} />
             <DigestList title="Risk alerts" items={digest?.risk_alerts ?? []} />
             <div className="mt-4 space-y-2">
@@ -460,12 +514,14 @@ function DashboardPage() {
               <div className="min-w-0">
                 <h2 className="text-sm font-semibold text-foreground">Signal Detail</h2>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  {selectedItem ? "Review summary, relevance, and next step." : "No signal selected"}
+                  {selectedItem
+                    ? "Review summary, relevance, and next step."
+                    : "No signal selected"}
                 </p>
               </div>
-              {selectedItem?.url && (
+              {selectedSourceUrl && (
                 <Button asChild variant="outline" size="icon" title="Open source">
-                  <a href={selectedItem.url} target="_blank" rel="noreferrer">
+                  <a href={selectedSourceUrl} target="_blank" rel="noreferrer">
                     <ExternalLink className="h-4 w-4" />
                   </a>
                 </Button>
@@ -503,7 +559,8 @@ function DashboardPage() {
                       Why relevant
                     </div>
                     <p className="mt-1 text-sm leading-6 text-foreground">
-                      {selectedItem.why_relevant ?? "Prioritize this signal to generate NGO relevance."}
+                      {selectedItem.why_relevant ??
+                        "Prioritize this signal to generate NGO relevance."}
                     </p>
                   </div>
                   <div>
@@ -511,13 +568,16 @@ function DashboardPage() {
                       Recommended action
                     </div>
                     <p className="mt-1 text-sm leading-6 text-foreground">
-                      {selectedItem.recommended_action ?? "Prioritize this signal to generate next steps."}
+                      {selectedItem.recommended_action ??
+                        "Prioritize this signal to generate next steps."}
                     </p>
                   </div>
                 </div>
 
                 <div>
-                  <div className="text-xs font-medium uppercase text-muted-foreground">Source excerpt</div>
+                  <div className="text-xs font-medium uppercase text-muted-foreground">
+                    Source excerpt
+                  </div>
                   <p className="mt-1 max-h-40 overflow-auto rounded-md border border-border bg-background p-3 text-sm leading-6 text-muted-foreground">
                     {truncate(cleanText(selectedItem.raw_text), 1200)}
                   </p>
@@ -564,11 +624,19 @@ function DashboardPage() {
                 {selectedItem.translated_text && (
                   <div>
                     <div className="text-xs font-medium uppercase text-muted-foreground">
-                      Translation {selectedItem.translated_language}
+                      {isTranslationPreview(selectedItem.translated_text)
+                        ? "Translation preview (not translated)"
+                        : `Translation ${selectedItem.translated_language ?? ""}`}
                     </div>
                     <p className="mt-1 rounded-md border border-border bg-background p-3 text-sm leading-6">
-                      {selectedItem.translated_text}
+                      {translationDisplayText(selectedItem.translated_text)}
                     </p>
+                    {isTranslationPreview(selectedItem.translated_text) && (
+                      <p className="mt-1 text-xs text-amber-800">
+                        No translation provider is configured; the backend returned the original
+                        text as a preview.
+                      </p>
+                    )}
                   </div>
                 )}
               </div>
@@ -584,15 +652,7 @@ function DashboardPage() {
   );
 }
 
-function Metric({
-  icon: Icon,
-  label,
-  value,
-}: {
-  icon: LucideIcon;
-  label: string;
-  value: string;
-}) {
+function Metric({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value: string }) {
   return (
     <div className="rounded-lg border border-border bg-card p-4">
       <div className="flex items-center justify-between gap-3">
@@ -648,10 +708,27 @@ function formatDate(value: string): string {
 }
 
 function cleanText(text: string): string {
-  return text.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  return text
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function truncate(text: string, maxLength: number): string {
   if (text.length <= maxLength) return text;
   return `${text.slice(0, maxLength - 3).trim()}...`;
+}
+
+function isTranslationPreview(text: string | null): boolean {
+  const value = text?.trim() ?? "";
+  return (
+    /^\[Demo translation fallback: [^\]]+\]\s*/.test(value) ||
+    /^\[Translation preview: [^\]]+\]\s*/.test(value) ||
+    /^\[(German|French|English) preview\]\s*/.test(value)
+  );
+}
+
+function translationDisplayText(text: string): string {
+  if (!isTranslationPreview(text)) return text;
+  return text.replace(/^\[[^\]]+\]\s*/, "");
 }

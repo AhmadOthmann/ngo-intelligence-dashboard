@@ -1,51 +1,37 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { Link, createFileRoute } from "@tanstack/react-router";
 import { Logo } from "@/components/logo";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 
 export const Route = createFileRoute("/signup")({
   head: () => ({
     meta: [
-      { title: "Sign up - Impact Atlas" },
-      { name: "description", content: "Create your NGO profile on Impact Atlas." },
+      { title: "Configure demo - Impact Atlas" },
+      { name: "description", content: "Configure a temporary Impact Atlas demo profile." },
     ],
   }),
   component: SignupPage,
 });
 
 function SignupPage() {
-  const navigate = useNavigate();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   return (
     <div className="flex min-h-screen items-center justify-center bg-secondary/40 px-4">
       <div className="w-full max-w-md rounded-2xl border border-border bg-card p-8 shadow-[var(--shadow-soft)]">
-        <div className="flex justify-center"><Logo /></div>
+        <div className="flex justify-center">
+          <Logo />
+        </div>
         <h1 className="mt-6 text-center text-xl font-semibold text-foreground">
-          Create your NGO profile
+          Configure a temporary NGO profile
         </h1>
         <p className="mt-1 text-center text-sm text-muted-foreground">
-          A short setup so AI can route signals that matter to your work.
+          This prototype stores profile settings only in this browser so they survive a reload. No
+          account is created, and clearing site data removes the profile.
         </p>
-        <form
-          className="mt-6 space-y-4"
-          onSubmit={(e) => {
-            e.preventDefault();
-            navigate({ to: "/onboarding" });
-          }}
-        >
-          <div className="space-y-1.5">
-            <Label htmlFor="email">Work email</Label>
-            <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="password">Password</Label>
-            <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
-          </div>
-          <Button type="submit" className="w-full">Start onboarding</Button>
-        </form>
+        <Button className="mt-6 w-full" asChild>
+          <Link to="/onboarding">Start demo setup</Link>
+        </Button>
+        <Button className="mt-3 w-full" variant="outline" asChild>
+          <Link to="/login">Use the default demo NGO</Link>
+        </Button>
       </div>
     </div>
   );
