@@ -103,7 +103,7 @@ Without OpenAI, deterministic analysis logic:
 - produces template-based explanations and actions; and
 - produces template-based digest and analysis content.
 
-Translation is different: the code attempts `deep-translator`'s Google Translate backend, may use OpenAI when configured, and otherwise returns clearly marked preview text. Text can therefore leave the system even when the OpenAI path is disabled.
+Translation tries OpenAI first when configured. If that path is unavailable and `TRANSLATION_PROVIDER=google`, the code attempts `deep-translator`'s Google Translate backend. Otherwise it returns clearly marked preview text without making an external translation request.
 
 This behavior keeps the demo usable but also hides provider failures from callers. Production observability should distinguish provider errors, fallback use, and model-quality failures.
 
