@@ -56,6 +56,8 @@ OpenAI API keys must remain on the backend. The frontend should receive only app
 
 Any provider key that has appeared in Git history must be treated as compromised and rotated. Removing it in a later commit does not invalidate copies in earlier commits, forks, caches, or clones.
 
+Google translation fallback is disabled by default. Set `TRANSLATION_PROVIDER=google` only after reviewing the provider, legal basis, retention, and sensitivity of the text that may be transmitted.
+
 ## Scraped and generated content
 
 Web pages, feed entries, and model output are untrusted:
