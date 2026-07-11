@@ -47,11 +47,12 @@ The image's default `DATABASE_PATH=/tmp/items.db` is ephemeral. Container replac
 | `OPENAI_API_KEY` | only for OpenAI | empty | server-side API credential; never expose to the frontend |
 | `OPENAI_MODEL` | no | `gpt-5.4-mini` | model identifier passed to the OpenAI SDK |
 | `OPENAI_REASONING_EFFORT` | no | `low` | reasoning-effort value passed to the model request |
+| `TRANSLATION_PROVIDER` | no | `none` | set to `google` to opt in to the external fallback after OpenAI is unavailable |
 | `DATABASE_PATH` | no | `items.db` outside Docker | SQLite file path |
 | `CORS_ORIGINS` | no | empty | comma-separated additional browser origins |
 | `PORT` | no | `8000` in Docker | Uvicorn listen port |
 
-Only the backend should receive `OPENAI_API_KEY`.
+Only the backend should receive `OPENAI_API_KEY`. Enabling the Google fallback is a separate data-processing decision.
 
 ## Frontend build
 
