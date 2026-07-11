@@ -202,6 +202,8 @@ The text must contain 1–12,000 characters.
 }
 ```
 
+Provider order is OpenAI when configured, then the Google Translate fallback only when `TRANSLATION_PROVIDER=google`, then local preview text. A successful response with a preview quality note does not mean translation occurred.
+
 ## Demo operations
 
 ### `POST /demo/reset`
@@ -224,4 +226,4 @@ Runs the default RSS ingestion, curated web scraping, analysis of up to 50 items
 | `422` | request body, path, or query validation failed |
 | `500` | unhandled internal or external-service failure |
 
-Provider failures are often converted into fallback output rather than an error response. Translation may call a Google Translate service before or in addition to OpenAI. Callers that need strict provider or data-processing guarantees must add an explicit policy and observability layer.
+Provider failures are often converted into fallback output rather than an error response. Translation can call a Google Translate service only when `TRANSLATION_PROVIDER=google`. Callers that need strict provider or data-processing guarantees must add an explicit policy and observability layer.
