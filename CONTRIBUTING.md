@@ -110,6 +110,7 @@ python -m piptools compile --generate-hashes --strip-extras -o requirements-dev.
 ```
 
 Review the full transitive diff and verify installation with `--require-hashes`. Do not hand-edit generated lock files.
+Confirm every dependency name is the intended package (for example, avoid lookalike names such as `httpx2`).
 
 For frontend updates, change `package.json`, regenerate `package-lock.json` with the pinned npm version, and use `npm ci` for verification. Keep runtime pins, the Docker base image, lock files, and CI configuration aligned.
 
