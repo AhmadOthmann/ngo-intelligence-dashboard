@@ -118,7 +118,9 @@ Copy-Item .env.example .env
 cp .env.example .env
 ```
 
-The application works without an API key when `AI_PROVIDER=none`. To enable OpenAI-backed analysis, set `AI_PROVIDER=openai` and add your own `OPENAI_API_KEY` in `.env`.
+The application works without an API key when `AI_PROVIDER=none`. To enable OpenAI-backed analysis and translation, set `AI_PROVIDER=openai` and add your own `OPENAI_API_KEY` in `.env`.
+
+External translation fallback is disabled by default. Set `TRANSLATION_PROVIDER=google` only after approving that text may be sent to Google when OpenAI is unavailable.
 
 Start the API from the repository root:
 
@@ -209,7 +211,7 @@ See [Deployment](docs/DEPLOYMENT.md) before publishing either service.
 - There is no authentication, authorization, tenant isolation, or rate limiting.
 - SQLite and the current schema are intended for a single small deployment.
 - AI classifications, deadlines, translations, and recommended actions can be wrong and require human verification.
-- Translation may send text to OpenAI or a Google Translate service, depending on configuration and fallback behavior.
+- Translation sends text to OpenAI only when OpenAI is configured. An optional Google Translate fallback is used only when `TRANSLATION_PROVIDER=google`.
 - Scraping depends on third-party availability, page structure, terms, and robots policies.
 - The web-ingestion endpoint accepts caller-provided URLs and must not be exposed to untrusted users without additional network controls and URL validation.
 - The fallback analyzer is keyword-based; it is resilient for demos, not an accuracy benchmark.
