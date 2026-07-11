@@ -7,6 +7,7 @@ with tempfile.NamedTemporaryFile(delete=False, suffix=".db") as db_file:
 
 from fastapi.testclient import TestClient
 
+from backend.ai_service import AIService
 from backend.database import create_item
 from backend.main import app
 from backend.models import ScrapeResult
@@ -15,6 +16,24 @@ from backend.web_scraper_service import (
     is_low_value_page,
     is_relevant_item,
 )
+
+
+def test_external_translation_fallback_is_opt_in(monkeypatch) -> None:
+    monkeypatch.setenv("AI_PROVIDER", "none")
+    monkeypatch.delenv("TRANSLATION_PROVIDER", raising=False)
+
+    def unexpected_google_call(*args, **kwargs):
+        raise AssertionError("Google translation must be opt-in")
+
+    monkeypatch.setattr(
+        "backend.ai_service._translate_with_google_fallback",
+        unexpected_google_call,
+    )
+
+    result = AIService().translate_text("Funding deadline", "German")
+
+    assert result["translated_text"].startswith("[Translation preview: German]")
+    assert result["quality_note"].startswith("Preview mode:")
 
 
 def test_mvp_endpoints_use_sqlite_and_fallback_analysis(monkeypatch) -> None:
