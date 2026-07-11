@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Bookmark,
   ChevronDown,
@@ -30,6 +30,7 @@ import {
   translate,
 } from "@/lib/i18n";
 import type { Signal } from "@/lib/types";
+import { validHttpUrl } from "@/lib/urls";
 import { toast } from "sonner";
 
 const canApplyTone: Record<string, string> = {
@@ -40,6 +41,7 @@ const canApplyTone: Record<string, string> = {
 
 const LANGUAGE_OPTIONS = ["German", "French", "English"] as const;
 type Importance = "high" | "medium" | "low";
+type TranslationSource = "provider" | "local-auto" | "local-fallback";
 
 export function SignalCard({ signal }: { signal: Signal }) {
   const { saveSignal, ignoreSignal, profile } = useAppState();
@@ -47,83 +49,42 @@ export function SignalCard({ signal }: { signal: Signal }) {
   const [expanded, setExpanded] = useState(false);
   const [saveOpen, setSaveOpen] = useState(false);
   const [importance, setImportance] = useState<Importance>("medium");
-  const [targetLanguage, setTargetLanguage] = useState(
-    normalizeTargetLanguage(profile?.language),
-  );
+  const [targetLanguage, setTargetLanguage] = useState(normalizeTargetLanguage(profile?.language));
   const [translatedSignal, setTranslatedSignal] = useState<Signal | null>(null);
-  const [translatedLanguage, setTranslatedLanguage] = useState(
-    signal.translatedLanguage ?? "",
-  );
+  const [translatedLanguage, setTranslatedLanguage] = useState(signal.translatedLanguage ?? "");
+  const [translationSource, setTranslationSource] = useState<TranslationSource | null>(null);
   const [isTranslating, setIsTranslating] = useState(false);
-  const [isAutoTranslating, setIsAutoTranslating] = useState(false);
   const displaySignal = translatedSignal ?? signal;
   const detailPoints = getDetailPoints(displaySignal);
-  const sourceSignature = useMemo(
-    () =>
-      [
-        signal.id,
-        signal.title,
-        signal.summary,
-        signal.longSummary ?? "",
-        signal.originalLanguage,
-        signal.whyRecommended,
-        signal.suggestedAction,
-        profile?.language ?? "",
-      ].join("|"),
-    [
-      signal.id,
-      signal.title,
-      signal.summary,
-      signal.longSummary,
-      signal.originalLanguage,
-      signal.whyRecommended,
-      signal.suggestedAction,
-      profile?.language,
-    ],
-  );
+  const sourceUrl = validHttpUrl(displaySignal.url);
 
   useEffect(() => {
-    const preferredLanguage = normalizeTargetLanguage(profile?.language);
+    const preferredLanguage = normalizeTargetLanguage(language);
     setTargetLanguage(preferredLanguage);
     setTranslatedSignal(null);
     setTranslatedLanguage(signal.translatedLanguage ?? "");
+    setTranslationSource(null);
 
-    if (!shouldAutoTranslate(signal, preferredLanguage)) {
-      setIsAutoTranslating(false);
-      return;
-    }
+    if (!shouldAutoTranslate(signal, preferredLanguage)) return;
 
-    let cancelled = false;
-    setIsAutoTranslating(true);
-    translateSignalContent(signal, preferredLanguage)
-      .then((translated) => {
-        if (cancelled) return;
-        setTranslatedSignal(translated);
-        setTranslatedLanguage(preferredLanguage);
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setTranslatedSignal(null);
-          setTranslatedLanguage("");
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setIsAutoTranslating(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [sourceSignature]);
+    const localPreview = translateSignalLocally(signal, preferredLanguage, "local-auto");
+    if (!localPreview) return;
+    setTranslatedSignal(localPreview.signal);
+    setTranslatedLanguage(preferredLanguage);
+    setTranslationSource(localPreview.source);
+  }, [signal, language]);
 
   async function handleTranslate() {
     setIsTranslating(true);
     try {
       const translated = await translateSignalContent(signal, targetLanguage);
-      setTranslatedSignal(translated);
+      setTranslatedSignal(translated.signal);
       setTranslatedLanguage(targetLanguage);
+      setTranslationSource(translated.source);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : `${translate(language, "translation")} failed`);
+      toast.error(
+        error instanceof Error ? error.message : `${translate(language, "translation")} failed`,
+      );
     } finally {
       setIsTranslating(false);
     }
@@ -133,24 +94,30 @@ export function SignalCard({ signal }: { signal: Signal }) {
     <article className="rounded-2xl border border-border bg-card p-4 shadow-[var(--shadow-soft)] transition hover:border-primary/30 sm:p-5">
       <header className="flex flex-wrap items-center gap-2">
         <TypeBadge type={displaySignal.type} language={language} />
-        {displaySignal.aiImportance && <AiImportanceBadge level={displaySignal.aiImportance} language={language} />}
+        {displaySignal.aiImportance && (
+          <AiImportanceBadge level={displaySignal.aiImportance} language={language} />
+        )}
         <span className="text-xs text-muted-foreground">{displaySignal.source}</span>
         <span className="text-xs text-muted-foreground">/</span>
         <span className="text-xs text-muted-foreground">{displaySignal.date}</span>
-        {displaySignal.funding?.deadline && displaySignal.funding.deadline !== "No deadline detected" && (
-          <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-800">
-            <CalendarClock className="h-3 w-3" />
-            {translate(language, "deadline")} {displaySignal.funding.deadline}
-          </span>
-        )}
-        {isAutoTranslating && (
-          <span className="rounded-full bg-secondary px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
-            {translate(language, "translation")} {targetLanguage}...
-          </span>
-        )}
-        {!isAutoTranslating && translatedSignal && translatedLanguage && (
-          <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
-            {translate(language, "translation")} {translatedLanguage}
+        {displaySignal.funding?.deadline &&
+          displaySignal.funding.deadline !== "No deadline detected" && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-800">
+              <CalendarClock className="h-3 w-3" />
+              {translate(language, "deadline")} {displaySignal.funding.deadline}
+            </span>
+          )}
+        {translatedSignal && translatedLanguage && translationSource && (
+          <span
+            className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
+              translationSource === "provider"
+                ? "bg-primary/10 text-primary"
+                : "bg-amber-100 text-amber-900"
+            }`}
+          >
+            {translationSource === "provider"
+              ? `${translate(language, "translation")} ${translatedLanguage}`
+              : localPreviewBadge(language, translatedLanguage)}
           </span>
         )}
       </header>
@@ -193,8 +160,14 @@ export function SignalCard({ signal }: { signal: Signal }) {
       {expanded && (
         <div className="mt-4 space-y-3 border-t border-border pt-4">
           <div className="grid gap-3 sm:grid-cols-2">
-            <DetailBlock label={translate(language, "whyThisMatters")} value={displaySignal.whyRecommended} />
-            <DetailBlock label={translate(language, "suggestedNextStep")} value={displaySignal.suggestedAction} />
+            <DetailBlock
+              label={translate(language, "whyThisMatters")}
+              value={displaySignal.whyRecommended}
+            />
+            <DetailBlock
+              label={translate(language, "suggestedNextStep")}
+              value={displaySignal.suggestedAction}
+            />
           </div>
 
           {detailPoints.length > 0 && (
@@ -215,7 +188,10 @@ export function SignalCard({ signal }: { signal: Signal }) {
 
           {displaySignal.funding && (
             <div className="grid grid-cols-2 gap-3 rounded-xl bg-secondary/60 p-3 text-xs sm:grid-cols-4">
-              <Field label={translate(language, "deadline")} value={displaySignal.funding.deadline} />
+              <Field
+                label={translate(language, "deadline")}
+                value={displaySignal.funding.deadline}
+              />
               <Field label={translate(language, "amount")} value={displaySignal.funding.amount} />
               <Field label={translate(language, "funder")} value={displaySignal.funding.funder} />
               <div>
@@ -237,7 +213,9 @@ export function SignalCard({ signal }: { signal: Signal }) {
             <div className="flex items-start gap-2 rounded-xl bg-secondary/60 p-3">
               <Users className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
               <div className="text-xs">
-                <div className="font-medium text-foreground">{translate(language, "peerActivity")}</div>
+                <div className="font-medium text-foreground">
+                  {translate(language, "peerActivity")}
+                </div>
                 <ul className="text-foreground/80">
                   {displaySignal.peerActivity.map((activity, index) => (
                     <li key={index}>- {activity.text}</li>
@@ -276,20 +254,19 @@ export function SignalCard({ signal }: { signal: Signal }) {
                 size="sm"
                 variant="outline"
                 onClick={() => void handleTranslate()}
-                disabled={isTranslating || isAutoTranslating}
+                disabled={isTranslating}
               >
-                {isTranslating || isAutoTranslating ? (
+                {isTranslating ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
                   <Languages className="h-4 w-4" />
                 )}
-                {translate(language, "translate")}
+                {providerTranslateLabel(language)}
               </Button>
             </div>
-            {translatedSignal && translatedLanguage && (
+            {translatedSignal && translatedLanguage && translationSource && (
               <div className="mt-3 rounded-lg bg-secondary/60 p-3 text-xs text-muted-foreground">
-                {translate(language, "translation")} {translatedLanguage}:{" "}
-                {translationCompleteLabel(language)}
+                {translationResultLabel(language, translatedLanguage, translationSource)}
               </div>
             )}
           </div>
@@ -298,11 +275,13 @@ export function SignalCard({ signal }: { signal: Signal }) {
             <span>
               {translate(language, "originalLanguage")}: {signal.originalLanguage}
             </span>
-            <Button size="sm" variant="ghost" asChild>
-              <a href={displaySignal.url ?? "#"} target="_blank" rel="noreferrer">
-                <ExternalLink className="h-4 w-4" /> {translate(language, "viewSource")}
-              </a>
-            </Button>
+            {sourceUrl && (
+              <Button size="sm" variant="ghost" asChild>
+                <a href={sourceUrl} target="_blank" rel="noreferrer">
+                  <ExternalLink className="h-4 w-4" /> {translate(language, "viewSource")}
+                </a>
+              </Button>
+            )}
           </div>
         </div>
       )}
@@ -391,7 +370,9 @@ function Field({ label, value }: { label: string; value: string }) {
 }
 
 function normalizeTargetLanguage(language: string | undefined): string {
-  return LANGUAGE_OPTIONS.find((option) => option.toLowerCase() === language?.toLowerCase()) ?? "German";
+  return (
+    LANGUAGE_OPTIONS.find((option) => option.toLowerCase() === language?.toLowerCase()) ?? "German"
+  );
 }
 
 function shouldAutoTranslate(signal: Signal, targetLanguage: string): boolean {
@@ -408,28 +389,58 @@ function supportedLanguageName(language: string | undefined): string {
   if (normalized === "fr" || normalized.startsWith("french") || normalized.startsWith("franc")) {
     return "French";
   }
-  if (
-    normalized === "de" ||
-    normalized.startsWith("german") ||
-    normalized.startsWith("deutsch")
-  ) {
+  if (normalized === "de" || normalized.startsWith("german") || normalized.startsWith("deutsch")) {
     return "German";
   }
   return "";
 }
 
-async function translateSignalContent(signal: Signal, targetLanguage: string): Promise<Signal> {
+interface SignalTranslationResult {
+  signal: Signal;
+  source: TranslationSource;
+}
+
+async function translateSignalContent(
+  signal: Signal,
+  targetLanguage: string,
+): Promise<SignalTranslationResult> {
   const segments = collectSignalSegments(signal);
   let translated = await translateSegments(segments, targetLanguage);
+  let source: TranslationSource = "provider";
 
   if (segments.length > 0 && translated.size === 0) {
     translated = localSignalTranslation(signal, targetLanguage);
+    source = "local-fallback";
   }
 
   if (segments.length > 0 && translated.size === 0) {
     throw new Error(translate(targetLanguage, "translationProviderEmpty"));
   }
 
+  return {
+    signal: applySignalTranslation(signal, targetLanguage, translated),
+    source,
+  };
+}
+
+function translateSignalLocally(
+  signal: Signal,
+  targetLanguage: string,
+  source: Extract<TranslationSource, "local-auto" | "local-fallback">,
+): SignalTranslationResult | null {
+  const translated = localSignalTranslation(signal, targetLanguage);
+  if (translated.size === 0) return null;
+  return {
+    signal: applySignalTranslation(signal, targetLanguage, translated),
+    source,
+  };
+}
+
+function applySignalTranslation(
+  signal: Signal,
+  targetLanguage: string,
+  translated: Map<string, string>,
+): Signal {
   return {
     ...signal,
     title: segmentValue(translated, "title", signal.title),
@@ -452,11 +463,7 @@ async function translateSignalContent(signal: Signal, targetLanguage: string): P
           deadline: segmentValue(translated, "funding.deadline", signal.funding.deadline),
           amount: segmentValue(translated, "funding.amount", signal.funding.amount),
           funder: segmentValue(translated, "funding.funder", signal.funding.funder),
-          eligibility: segmentValue(
-            translated,
-            "funding.eligibility",
-            signal.funding.eligibility,
-          ),
+          eligibility: segmentValue(translated, "funding.eligibility", signal.funding.eligibility),
         }
       : undefined,
     translatedLanguage: targetLanguage,
@@ -477,9 +484,7 @@ function collectSignalSegments(signal: Signal): Array<{ key: string; value: stri
   add("whyRecommended", signal.whyRecommended);
   add("suggestedAction", signal.suggestedAction);
   signal.keyPoints?.forEach((point, index) => add(`keyPoint.${index}`, point));
-  signal.peerActivity?.forEach((activity, index) =>
-    add(`peerActivity.${index}`, activity.text),
-  );
+  signal.peerActivity?.forEach((activity, index) => add(`peerActivity.${index}`, activity.text));
   if (signal.funding) {
     add("funding.deadline", signal.funding.deadline);
     add("funding.amount", signal.funding.amount);
@@ -500,7 +505,10 @@ function localSignalTranslation(signal: Signal, targetLanguage: string): Map<str
   return translations ? new Map(Object.entries(translations)) : new Map();
 }
 
-type LocalSignalTranslations = Record<string, { de: Record<string, string>; fr: Record<string, string> }>;
+type LocalSignalTranslations = Record<
+  string,
+  { de: Record<string, string>; fr: Record<string, string> }
+>;
 
 const LOCAL_SIGNAL_TRANSLATIONS: LocalSignalTranslations = {
   "recadec-great-lakes-generation": {
@@ -516,9 +524,12 @@ const LOCAL_SIGNAL_TRANSLATIONS: LocalSignalTranslations = {
       suggestedAction:
         "Pruefen Sie moegliche Partner fuer Jugendunternehmertum, Feldkontakte oder Nachweise fuer Projektantraege zu regionaler Jugendfuehrung.",
       "keyPoint.0": "In Bujumbura mit Jugendlichen aus Burundi, der DR Kongo und Ruanda gestartet",
-      "keyPoint.1": "Fokus auf Unternehmertum, Fuehrung, Friedensfoerderung und regionale Zusammenarbeit",
-      "keyPoint.2": "Relevant fuer Bildung, Jugendfoerderung und Partnernetzwerke in der Region der Grossen Seen",
-      "peerActivity.0": "Relevant fuer NGOs, die mit Jugendlichen in der Region der Grossen Seen arbeiten",
+      "keyPoint.1":
+        "Fokus auf Unternehmertum, Fuehrung, Friedensfoerderung und regionale Zusammenarbeit",
+      "keyPoint.2":
+        "Relevant fuer Bildung, Jugendfoerderung und Partnernetzwerke in der Region der Grossen Seen",
+      "peerActivity.0":
+        "Relevant fuer NGOs, die mit Jugendlichen in der Region der Grossen Seen arbeiten",
     },
     fr: {
       title: "Une nouvelle generation prete a transformer la region des Grands Lacs",
@@ -532,9 +543,12 @@ const LOCAL_SIGNAL_TRANSLATIONS: LocalSignalTranslations = {
       suggestedAction:
         "Examiner les partenaires possibles pour l'entrepreneuriat des jeunes, les contacts terrain ou les preuves a utiliser dans des propositions sur le leadership regional des jeunes.",
       "keyPoint.0": "Lance a Bujumbura avec des jeunes du Burundi, de la RDC et du Rwanda",
-      "keyPoint.1": "Met l'accent sur l'entrepreneuriat, le leadership, la paix et la cooperation regionale",
-      "keyPoint.2": "Pertinent pour l'education, l'autonomisation des jeunes et les reseaux de partenaires des Grands Lacs",
-      "peerActivity.0": "Pertinent pour les ONG travaillant avec les jeunes dans la region des Grands Lacs",
+      "keyPoint.1":
+        "Met l'accent sur l'entrepreneuriat, le leadership, la paix et la cooperation regionale",
+      "keyPoint.2":
+        "Pertinent pour l'education, l'autonomisation des jeunes et les reseaux de partenaires des Grands Lacs",
+      "peerActivity.0":
+        "Pertinent pour les ONG travaillant avec les jeunes dans la region des Grands Lacs",
     },
   },
   "sig-1": {
@@ -554,7 +568,8 @@ const LOCAL_SIGNAL_TRANSLATIONS: LocalSignalTranslations = {
       "peerActivity.1": "Von 1 NGO in Ostafrika in den Digest aufgenommen",
       "funding.deadline": "15. August 2026",
       "funding.funder": "East Africa Education Foundation",
-      "funding.eligibility": "Deutsche NGOs koennen antragsberechtigt sein, lokaler Partner erforderlich",
+      "funding.eligibility":
+        "Deutsche NGOs koennen antragsberechtigt sein, lokaler Partner erforderlich",
     },
     fr: {
       title: "Petite subvention pour l'education des filles en Afrique de l'Est",
@@ -601,10 +616,12 @@ const LOCAL_SIGNAL_TRANSLATIONS: LocalSignalTranslations = {
         "ReliefWeb rapporte que plusieurs centaines de familles ont ete deplacees dans la province de Bujumbura apres de fortes pluies et des troubles localises. Les couloirs humanitaires restent ouverts, et les autorites locales coordonnent avec les agences des Nations unies. Les ONG actives dans la region sont invitees a coordonner leurs deplacements terrain via le systeme de clusters etabli.",
       whyRecommended:
         "Correspond a votre region: Burundi, Bujumbura. Marque urgent en raison de l'impact humanitaire sur votre zone d'intervention.",
-      suggestedAction: "Examiner avec votre equipe locale et mettre a jour les plans de deplacement terrain.",
+      suggestedAction:
+        "Examiner avec votre equipe locale et mettre a jour les plans de deplacement terrain.",
       "keyPoint.0": "Deplacements concentres dans trois communes pres de Bujumbura",
       "keyPoint.1": "L'acces humanitaire est ouvert mais necessite une coordination",
-      "keyPoint.2": "Les reunions locales de clusters reprennent chaque semaine a partir du 28 juin",
+      "keyPoint.2":
+        "Les reunions locales de clusters reprennent chaque semaine a partir du 28 juin",
       "keyPoint.3": "La sante et l'abri sont les besoins sectoriels les plus urgents",
       "peerActivity.0": "Clique par 5 ONG travaillant dans la region des Grands Lacs",
     },
@@ -637,7 +654,8 @@ const LOCAL_SIGNAL_TRANSLATIONS: LocalSignalTranslations = {
         "Un rapport terrain de 60 pages d'un consortium de partenaires sante documente une correlation mesurable entre les pics saisonniers de paludisme et l'absenteisme scolaire dans le Burundi rural. A partir de donnees recueillies dans 42 ecoles, le rapport recommande des mesures de prevention scolaires peu couteuses, notamment la distribution de moustiquaires, le depistage en classe et des voies de reference rapides vers les centres de sante proches.",
       whyRecommended:
         "Correspond a vos themes: sante, education, Burundi. Preuve utile pour les propositions de financement.",
-      suggestedAction: "Enregistrer dans les renseignements terrain pour appuyer les prochaines propositions.",
+      suggestedAction:
+        "Enregistrer dans les renseignements terrain pour appuyer les prochaines propositions.",
       "keyPoint.0": "42 ecoles etudiees dans le Burundi rural",
       "keyPoint.1": "Le taux d'absence augmente de 18% pendant la saison de pointe du paludisme",
       "keyPoint.2": "Distribution de moustiquaires et voies de reference recommandees",
@@ -701,7 +719,8 @@ const LOCAL_SIGNAL_TRANSLATIONS: LocalSignalTranslations = {
         "Des enqueteurs signalent de nouvelles routes de trafic entre l'Afrique de l'Est et les marches europeens. Ils appellent a un renforcement de l'application cote consommateurs.",
       longSummary:
         "Un bulletin TRAFFIC cartographie deux nouveaux corridors de trafic d'especes sauvages reliant des pays sources d'Afrique de l'Est aux marches de consommation d'Europe occidentale. Les enqueteurs documentent un passage du fret aerien a des itineraires mixtes route-mer via des ports mediterraneens. Le rapport appelle les ONG europeennes et les regulateurs a se concentrer sur l'application cote consommateurs et les audits de chaine d'approvisionnement des produits de luxe.",
-      whyRecommended: "Correspond au profil WTG: protection de la faune, commerce animal, protection des consommateurs.",
+      whyRecommended:
+        "Correspond au profil WTG: protection de la faune, commerce animal, protection des consommateurs.",
       suggestedAction: "Partager avec l'equipe politique et envisager une reponse publique.",
       "keyPoint.0": "Deux nouveaux corridors documentes depuis fin 2025",
       "keyPoint.1": "Passage du fret aerien a la route plus mer Mediterranee",
@@ -742,7 +761,8 @@ const LOCAL_SIGNAL_TRANSLATIONS: LocalSignalTranslations = {
         "Foerderzyklus offen fuer kleine deutsche NGOs, die Projekte mit lokalen Partnern in Afrika umsetzen. Bildung, Gesundheit und Frauenfoerderung werden priorisiert.",
       longSummary:
         "Die BMZ-Foerdereinrichtung fuer kleine NGOs hat ihren Foerderzyklus 2026 geoeffnet. Das Instrument unterstuetzt deutsche NGOs mit einem Jahresumsatz unter 1,5 Mio. Euro bei 12- bis 36-monatigen Projekten mit einem registrierten lokalen Partner in Afrika. Bildung, Gesundheit und Frauenfoerderung sind die angegebenen Prioritaetsbereiche dieses Zyklus. Konzeptnotizen werden monatlich bis zum Ende des Zyklus geprueft.",
-      whyRecommended: "Starker Treffer: deutscher Antragsteller berechtigt, Kleinfoerderung, Afrika, Bildung, Gesundheit.",
+      whyRecommended:
+        "Starker Treffer: deutscher Antragsteller berechtigt, Kleinfoerderung, Afrika, Bildung, Gesundheit.",
       suggestedAction: "Eignungspruefung starten und eine Konzeptnotiz entwerfen.",
       "peerActivity.0": "Von 1 aehnlichen NGO in den Digest aufgenommen",
       "funding.deadline": "30. September 2026",
@@ -757,7 +777,8 @@ const LOCAL_SIGNAL_TRANSLATIONS: LocalSignalTranslations = {
         "Cycle de financement ouvert aux petites ONG allemandes mettant en oeuvre des projets avec des partenaires locaux en Afrique. Education, sante et autonomisation des femmes sont prioritaires.",
       longSummary:
         "Le dispositif BMZ pour petites ONG a ouvert son cycle de financement 2026. L'instrument soutient des ONG allemandes avec un chiffre d'affaires annuel inferieur a 1,5 million d'euros pour des projets de 12 a 36 mois avec un partenaire local enregistre en Afrique. L'education, la sante et l'autonomisation des femmes sont les priorites annoncees pour ce cycle. Les notes conceptuelles sont examinees chaque mois jusqu'a la cloture du cycle.",
-      whyRecommended: "Tres pertinent: demandeur allemand eligible, petites subventions, Afrique, education, sante.",
+      whyRecommended:
+        "Tres pertinent: demandeur allemand eligible, petites subventions, Afrique, education, sante.",
       suggestedAction: "Lancer la verification d'eligibilite et rediger une note conceptuelle.",
       "peerActivity.0": "Ajoute au digest par 1 ONG similaire",
       "funding.deadline": "30 septembre 2026",
@@ -809,6 +830,12 @@ async function translateSegments(
 
   try {
     const result = await translateText(payload, targetLanguage);
+    if (
+      /^\[Translation preview:/i.test(result.translated_text.trim()) ||
+      result.quality_note.trim().toLowerCase().startsWith("preview mode")
+    ) {
+      return new Map();
+    }
     const translatedPayload = cleanTranslationText(result.translated_text);
     const translated = new Map<string, string>();
 
@@ -822,29 +849,13 @@ async function translateSegments(
 
     if (translated.size > 0) return translated;
   } catch {
-    // Fall back to individual fields below when a provider drops marker tags.
+    // An explicit translation attempt may fall back to curated local demo copy below.
   }
 
-  const fallback = new Map<string, string>();
-  await Promise.all(
-    segments.map(async (segment) => {
-      try {
-        const result = await translateText(segment.value, targetLanguage);
-        const value = cleanTranslationText(result.translated_text);
-        if (value) fallback.set(segment.key, value);
-      } catch {
-        // Keep the original text for this field.
-      }
-    }),
-  );
-  return fallback;
+  return new Map();
 }
 
-function segmentValue(
-  translated: Map<string, string>,
-  key: string,
-  fallback: string,
-): string;
+function segmentValue(translated: Map<string, string>, key: string, fallback: string): string;
 function segmentValue(
   translated: Map<string, string>,
   key: string,
@@ -868,11 +879,47 @@ function canApplyLabel(value: "yes" | "check" | "no", language: string | undefin
   return labels[locale][value];
 }
 
-function translationCompleteLabel(language: string | undefined): string {
+function localPreviewBadge(language: string | undefined, targetLanguage: string): string {
   const locale = localeFromLanguage(language);
-  if (locale === "fr") return "tout le contenu visible de ce signal est traduit.";
-  if (locale === "de") return "alle sichtbaren Inhalte dieses Signals sind uebersetzt.";
-  return "all visible content in this signal is translated.";
+  if (locale === "fr") return `Apercu de demo local ${targetLanguage}`;
+  if (locale === "de") return `Lokale Demo-Vorschau ${targetLanguage}`;
+  return `Local demo preview ${targetLanguage}`;
+}
+
+function providerTranslateLabel(language: string | undefined): string {
+  const locale = localeFromLanguage(language);
+  if (locale === "fr") return "Traduire avec le fournisseur";
+  if (locale === "de") return "Mit Anbieter uebersetzen";
+  return "Translate with provider";
+}
+
+function translationResultLabel(
+  language: string | undefined,
+  targetLanguage: string,
+  source: TranslationSource,
+): string {
+  const locale = localeFromLanguage(language);
+  if (source === "provider") {
+    if (locale === "fr") return `Traduction fournisseur en ${targetLanguage} pour cet apercu.`;
+    if (locale === "de") return `Anbieter-Uebersetzung in ${targetLanguage} fuer diese Ansicht.`;
+    return `Provider translation to ${targetLanguage} for this browser view.`;
+  }
+  if (source === "local-auto") {
+    if (locale === "fr") {
+      return `Apercu de demo local en ${targetLanguage}; aucune requete fournisseur automatique.`;
+    }
+    if (locale === "de") {
+      return `Lokale Demo-Vorschau in ${targetLanguage}; keine automatische Anbieter-Anfrage.`;
+    }
+    return `Local demo preview in ${targetLanguage}; no automatic provider request was made.`;
+  }
+  if (locale === "fr") {
+    return `Apercu de demo local en ${targetLanguage}; le fournisseur n'a pas renvoye de vraie traduction.`;
+  }
+  if (locale === "de") {
+    return `Lokale Demo-Vorschau in ${targetLanguage}; der Anbieter lieferte keine echte Uebersetzung.`;
+  }
+  return `Local demo preview in ${targetLanguage}; the provider did not return a real translation.`;
 }
 
 function cleanTranslationText(text: string): string {

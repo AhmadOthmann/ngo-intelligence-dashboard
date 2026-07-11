@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { TypeBadge } from "@/components/priority-badge";
 import { useAppState } from "@/lib/app-state";
 import type { SavedCategory, SavedItem, SavedStatus } from "@/lib/types";
+import { validHttpUrl } from "@/lib/urls";
 import { toast } from "sonner";
 import { BURUNDI_KIDS } from "@/lib/demo-data";
 import {
@@ -69,7 +70,17 @@ function SavedPage() {
       const needle = q.toLowerCase();
       list = list.filter((i) => i.signal.title.toLowerCase().includes(needle));
     }
-    if (sort === "newestSaved") {
+    if (sort === "mostImportant") {
+      list = [...list].sort(
+        (a, b) =>
+          savedImportanceRank(a) - savedImportanceRank(b) || b.savedAt.localeCompare(a.savedAt),
+      );
+    } else if (sort === "deadlineSoon") {
+      list = [...list].sort(
+        (a, b) =>
+          savedDeadline(a) - savedDeadline(b) || savedImportanceRank(a) - savedImportanceRank(b),
+      );
+    } else if (sort === "newestSaved") {
       list = [...list].sort((a, b) => b.savedAt.localeCompare(a.savedAt));
     } else if (sort === "oldestSaved") {
       list = [...list].sort((a, b) => a.savedAt.localeCompare(b.savedAt));
@@ -184,6 +195,7 @@ function SavedCard({
   const [showNote, setShowNote] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const s = item.signal;
+  const sourceUrl = validHttpUrl(s.url);
   const importanceTone: Record<string, string> = {
     high: "bg-rose-50 text-rose-700 border-rose-200",
     medium: "bg-amber-50 text-amber-800 border-amber-200",
@@ -252,7 +264,9 @@ function SavedCard({
               <MiniField label={translate(language, "funder")} value={s.funding.funder} />
               <div>
                 <div className="text-muted-foreground">{translate(language, "canYouApply")}</div>
-                <span className={`mt-0.5 inline-flex rounded-md px-2 py-0.5 text-[11px] font-medium ${canApplyTone[s.funding.canApply]}`}>
+                <span
+                  className={`mt-0.5 inline-flex rounded-md px-2 py-0.5 text-[11px] font-medium ${canApplyTone[s.funding.canApply]}`}
+                >
                   {canApplyLabel(s.funding.canApply, language)}
                 </span>
               </div>
@@ -266,9 +280,13 @@ function SavedCard({
             <div className="flex items-start gap-2 rounded-xl bg-secondary/60 p-3">
               <Users className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
               <div className="text-xs">
-                <div className="font-medium text-foreground">{translate(language, "peerActivity")}</div>
+                <div className="font-medium text-foreground">
+                  {translate(language, "peerActivity")}
+                </div>
                 <ul className="text-foreground/80">
-                  {s.peerActivity.map((p, i) => (<li key={i}>- {p.text}</li>))}
+                  {s.peerActivity.map((p, i) => (
+                    <li key={i}>- {p.text}</li>
+                  ))}
                 </ul>
               </div>
             </div>
@@ -279,12 +297,16 @@ function SavedCard({
             </div>
           )}
           <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
-            <span>{s.source} / {s.date}</span>
-            <Button size="sm" variant="ghost" asChild>
-              <a href={s.url ?? "#"} target="_blank" rel="noreferrer">
-                <ExternalLink className="h-4 w-4" /> {translate(language, "viewSource")}
-              </a>
-            </Button>
+            <span>
+              {s.source} / {s.date}
+            </span>
+            {sourceUrl && (
+              <Button size="sm" variant="ghost" asChild>
+                <a href={sourceUrl} target="_blank" rel="noreferrer">
+                  <ExternalLink className="h-4 w-4" /> {translate(language, "viewSource")}
+                </a>
+              </Button>
+            )}
           </div>
         </div>
       )}
@@ -298,7 +320,16 @@ function SavedCard({
             placeholder={copy.notePlaceholder}
             className="w-full rounded-md border border-border bg-card p-2 text-sm"
           />
-          <Button size="sm" onClick={() => { onNote(note); setShowNote(false); toast.success(copy.noteSaved); }}>{copy.saveNote}</Button>
+          <Button
+            size="sm"
+            onClick={() => {
+              onNote(note);
+              setShowNote(false);
+              toast.success(copy.noteSaved);
+            }}
+          >
+            {copy.saveNote}
+          </Button>
         </div>
       )}
 
@@ -306,17 +337,39 @@ function SavedCard({
         <Button size="sm" variant="outline" onClick={() => setShowNote((v) => !v)}>
           <NotebookPen className="h-4 w-4" /> {copy.addNote}
         </Button>
-        <Button size="sm" variant="outline" onClick={() => { onStatus("contacted"); toast(copy.markedContacted); }}>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => {
+            onStatus("contacted");
+            toast(copy.markedContacted);
+          }}
+        >
           <MessageSquare className="h-4 w-4" /> {copy.askPeer}
         </Button>
-        <Button size="sm" variant="ghost" onClick={() => { onArchive(); toast(statusLabel(language, "archived")); }}>
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => {
+            onArchive();
+            toast(statusLabel(language, "archived"));
+          }}
+        >
           <Archive className="h-4 w-4" /> {statusLabel(language, "archived")}
         </Button>
         <button
           onClick={() => setExpanded((v) => !v)}
           className="ml-auto inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
         >
-          {expanded ? (<>{translate(language, "hideDetails")} <ChevronUp className="h-3.5 w-3.5" /></>) : (<>{translate(language, "showDetails")} <ChevronDown className="h-3.5 w-3.5" /></>)}
+          {expanded ? (
+            <>
+              {translate(language, "hideDetails")} <ChevronUp className="h-3.5 w-3.5" />
+            </>
+          ) : (
+            <>
+              {translate(language, "showDetails")} <ChevronDown className="h-3.5 w-3.5" />
+            </>
+          )}
         </button>
       </div>
     </div>
@@ -348,7 +401,8 @@ function savedCopy(language: string | undefined) {
       saveNote: "Sauvegarder la note",
       searchPlaceholder: "Rechercher dans les tags",
       status: "Statut",
-      subtitle: "Base de connaissances organisee de votre ONG pour financements, actualites, rapports et notes de pairs.",
+      subtitle:
+        "Base de connaissances organisee de votre ONG pour financements, actualites, rapports et notes de pairs.",
     };
   }
   if (locale === "de") {
@@ -365,7 +419,8 @@ function savedCopy(language: string | undefined) {
       saveNote: "Notiz speichern",
       searchPlaceholder: "Getaggte Elemente suchen",
       status: "Status",
-      subtitle: "Organisierte Wissensbasis Ihrer NGO fuer Foerderung, Nachrichten, Berichte und Peer-Notizen.",
+      subtitle:
+        "Organisierte Wissensbasis Ihrer NGO fuer Foerderung, Nachrichten, Berichte und Peer-Notizen.",
     };
   }
   return {
@@ -408,6 +463,22 @@ function sortLabelSaved(language: string | undefined, sort: (typeof SORTS)[numbe
     },
   } as const;
   return labels[locale][sort];
+}
+
+function savedImportanceRank(item: SavedItem): number {
+  if (item.importance === "high") return 0;
+  if (item.importance === "medium") return 2;
+  if (item.importance === "low") return 4;
+  if (item.signal.aiImportance === "urgent") return 0;
+  if (item.signal.aiImportance === "important") return 1;
+  if (item.signal.aiImportance === "medium") return 2;
+  if (item.signal.aiImportance === "low") return 3;
+  return item.signal.priority === "urgent" ? 0 : item.signal.priority === "relevant" ? 2 : 4;
+}
+
+function savedDeadline(item: SavedItem): number {
+  const parsed = Date.parse(item.signal.funding?.deadlineIso ?? "");
+  return Number.isNaN(parsed) ? Number.POSITIVE_INFINITY : parsed;
 }
 
 function statusLabel(language: string | undefined, status: SavedStatus): string {

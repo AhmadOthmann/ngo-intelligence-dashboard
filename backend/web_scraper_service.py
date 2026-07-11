@@ -12,10 +12,16 @@ from bs4 import BeautifulSoup
 from langdetect import LangDetectException, detect_langs
 
 from .database import create_item
+from .http_client import (
+    UnsupportedContentTypeError,
+    fetch_public_url,
+    normalize_http_url,
+    validate_public_url,
+)
 from .models import ScrapeResult
 
 
-USER_AGENT = "ngo-intelligence-dashboard/0.1 (+local hackathon demo)"
+USER_AGENT = "impact-atlas/0.1 (+local hackathon demo)"
 DEFAULT_WEB_SOURCES = [
     "https://recadec.org/en/a-new-generation-ready-to-transform-the-great-lakes-region/",
     "https://recadec.org/en/news/",
@@ -139,6 +145,7 @@ class WebScraperService:
         self.timeout = timeout
         self.delay_seconds = delay_seconds
         self.session = requests.Session()
+        self.session.trust_env = False
         self.session.headers.update({"User-Agent": USER_AGENT})
         self._robots_cache: dict[str, RobotFileParser] = {}
 
@@ -150,12 +157,16 @@ class WebScraperService:
         follow_links: bool = True,
         respect_robots: bool = True,
     ) -> ScrapeResult:
-        seed_urls = [normalize_url(url) for url in (urls or DEFAULT_WEB_SOURCES)]
-        queue = deque(url for url in seed_urls if url)
+        errors: list[dict[str, str]] = []
+        queue: deque[str] = deque()
+        for candidate in DEFAULT_WEB_SOURCES if urls is None else urls:
+            try:
+                queue.append(validate_public_url(candidate))
+            except ValueError as exc:
+                errors.append({"url": candidate, "error": str(exc)})
         visited: set[str] = set()
         scraped = 0
         skipped = 0
-        errors: list[dict[str, str]] = []
 
         while queue and len(visited) < max_pages:
             url = queue.popleft()
@@ -169,12 +180,16 @@ class WebScraperService:
                 continue
 
             try:
-                page = self._fetch(url)
-                if page is None:
+                fetched = self._fetch(
+                    url,
+                    allow_cross_origin_redirects=not respect_robots,
+                )
+                if fetched is None:
                     skipped += 1
                     continue
+                final_url, page = fetched
 
-                item = self._page_to_item(url, page)
+                item = self._page_to_item(final_url, page)
                 if item is None:
                     skipped += 1
                 else:
@@ -188,8 +203,13 @@ class WebScraperService:
                         skipped += 1
 
                 if follow_links:
-                    for link in extract_candidate_links(url, page):
-                        if link not in visited and len(visited) + len(queue) < max_pages * 4:
+                    remaining_capacity = max_pages * 4 - len(visited) - len(queue)
+                    for link in extract_candidate_links(
+                        final_url,
+                        page,
+                        max_links=max(0, remaining_capacity),
+                    ):
+                        if link not in visited:
                             queue.append(link)
                 sleep(self.delay_seconds)
             except Exception as exc:
@@ -197,13 +217,23 @@ class WebScraperService:
 
         return ScrapeResult(scraped=scraped, skipped=skipped, errors=errors)
 
-    def _fetch(self, url: str) -> Optional[str]:
-        response = self.session.get(url, timeout=self.timeout)
-        response.raise_for_status()
-        content_type = response.headers.get("content-type", "").lower()
-        if "html" not in content_type:
+    def _fetch(
+        self,
+        url: str,
+        *,
+        allow_cross_origin_redirects: bool,
+    ) -> Optional[tuple[str, str]]:
+        try:
+            response = fetch_public_url(
+                self.session,
+                url,
+                timeout=(5, self.timeout),
+                accepted_content_types=("text/html", "application/xhtml+xml"),
+                allow_cross_origin_redirects=allow_cross_origin_redirects,
+            )
+        except UnsupportedContentTypeError:
             return None
-        return response.text
+        return response.url, response.text
 
     def _page_to_item(self, url: str, html: str) -> Optional[dict[str, object]]:
         soup = BeautifulSoup(html, "html.parser")
@@ -237,11 +267,25 @@ class WebScraperService:
         origin = f"{parsed.scheme}://{parsed.netloc}"
         if origin not in self._robots_cache:
             parser = RobotFileParser()
-            parser.set_url(urljoin(origin, "/robots.txt"))
+            robots_url = urljoin(origin, "/robots.txt")
+            parser.set_url(robots_url)
             try:
-                parser.read()
+                response = fetch_public_url(
+                    self.session,
+                    robots_url,
+                    timeout=(5, min(self.timeout, 10)),
+                    max_bytes=256_000,
+                    accepted_content_types=("text/plain", "text/robots", "text/html"),
+                    allow_cross_origin_redirects=False,
+                )
+                parser.parse(response.text.splitlines())
+            except requests.HTTPError as exc:
+                if exc.response is not None and exc.response.status_code in {404, 410}:
+                    parser.parse([])
+                else:
+                    return False
             except Exception:
-                return True
+                return False
             self._robots_cache[origin] = parser
         return self._robots_cache[origin].can_fetch(USER_AGENT, url)
 
@@ -251,10 +295,10 @@ def normalize_url(url: str) -> Optional[str]:
     if not url:
         return None
     url, _fragment = urldefrag(url)
-    parsed = urlparse(url)
-    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+    try:
+        return normalize_http_url(url)
+    except ValueError:
         return None
-    return url
 
 
 def extract_title(soup: BeautifulSoup, url: str) -> str:
@@ -308,10 +352,17 @@ def text_blocks(soup: BeautifulSoup) -> list[str]:
     return blocks
 
 
-def extract_candidate_links(base_url: str, html: str) -> list[str]:
+def extract_candidate_links(
+    base_url: str,
+    html: str,
+    *,
+    max_links: int = 80,
+) -> list[str]:
+    if max_links <= 0:
+        return []
     soup = BeautifulSoup(html, "html.parser")
     base_domain = urlparse(base_url).netloc
-    scored_links: list[tuple[int, str]] = []
+    scored_links: dict[str, int] = {}
     for anchor in soup.find_all("a", href=True):
         href = normalize_url(urljoin(base_url, anchor["href"]))
         if not href or href == base_url:
@@ -325,13 +376,16 @@ def extract_candidate_links(base_url: str, html: str) -> list[str]:
         haystack = f"{href} {link_text}".lower()
         score = relevance_score(haystack)
         if score > 0:
-            scored_links.append((score, href))
+            scored_links[href] = max(score, scored_links.get(href, 0))
 
-    prioritized: list[str] = []
-    for _score, href in sorted(scored_links, key=lambda pair: pair[0], reverse=True):
-        if href not in prioritized:
-            prioritized.append(href)
-    return prioritized
+    return [
+        href
+        for href, _score in sorted(
+            scored_links.items(),
+            key=lambda pair: pair[1],
+            reverse=True,
+        )[:max_links]
+    ]
 
 
 def is_listing_page(url: str) -> bool:

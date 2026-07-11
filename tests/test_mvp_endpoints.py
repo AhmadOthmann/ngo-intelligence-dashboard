@@ -1,20 +1,123 @@
-import os
-import tempfile
-
-os.environ["AI_PROVIDER"] = "none"
-with tempfile.NamedTemporaryFile(delete=False, suffix=".db") as db_file:
-    os.environ["DATABASE_PATH"] = db_file.name
-
+import pytest
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
+from backend.ai_service import AIService
 from backend.database import create_item
-from backend.main import app
-from backend.models import ScrapeResult
+from backend.main import _require_demo_confirmation, _require_demo_endpoints, app
+from backend.models import DemoOperationRequest, ScrapeResult
 from backend.web_scraper_service import (
+    extract_candidate_links,
     is_listing_page,
     is_low_value_page,
     is_relevant_item,
 )
+
+
+def test_translation_without_openai_is_a_local_preview(monkeypatch) -> None:
+    monkeypatch.setenv("AI_PROVIDER", "none")
+
+    result = AIService().translate_text("Funding deadline", "German")
+
+    assert result["translated_text"].startswith("[Translation preview: German]")
+    assert result["quality_note"].startswith("Preview mode:")
+
+
+def test_demo_endpoints_are_disabled_by_default(monkeypatch) -> None:
+    monkeypatch.delenv("ENABLE_DEMO_ENDPOINTS", raising=False)
+
+    with TestClient(app) as client:
+        assert client.post("/demo/reset").status_code == 404
+        assert client.post("/demo/run").status_code == 404
+
+
+def test_demo_endpoints_stay_disabled_in_production(monkeypatch) -> None:
+    monkeypatch.setenv("APP_ENV", "production")
+    monkeypatch.setenv("ENABLE_DEMO_ENDPOINTS", "true")
+
+    with TestClient(app) as client:
+        assert client.post("/demo/reset").status_code == 404
+
+
+def test_demo_endpoints_require_an_explicit_local_environment(monkeypatch) -> None:
+    monkeypatch.setenv("ENABLE_DEMO_ENDPOINTS", "true")
+    monkeypatch.delenv("APP_ENV", raising=False)
+
+    with TestClient(app) as client:
+        assert client.post("/demo/reset").status_code == 404
+
+    monkeypatch.setenv("APP_ENV", "staging")
+    with TestClient(app) as client:
+        assert client.post("/demo/reset").status_code == 404
+
+
+def test_demo_guard_allows_an_explicit_development_environment(monkeypatch) -> None:
+    monkeypatch.setenv("APP_ENV", "development")
+    monkeypatch.setenv("ENABLE_DEMO_ENDPOINTS", "true")
+
+    _require_demo_endpoints()
+
+
+def test_enabled_demo_routes_reject_missing_or_incorrect_confirmation(monkeypatch) -> None:
+    monkeypatch.setenv("APP_ENV", "development")
+    monkeypatch.setenv("ENABLE_DEMO_ENDPOINTS", "true")
+
+    with TestClient(app) as client:
+        assert client.post("/demo/reset").status_code == 400
+        assert client.post(
+            "/demo/reset",
+            json={"confirmation": "something-else"},
+        ).status_code == 400
+
+
+def test_demo_operations_require_the_exact_confirmation() -> None:
+    with pytest.raises(HTTPException) as missing:
+        _require_demo_confirmation(None, "replace-all-items")
+    with pytest.raises(HTTPException) as incorrect:
+        _require_demo_confirmation(
+            DemoOperationRequest(confirmation="something-else"),
+            "replace-all-items",
+        )
+
+    assert missing.value.status_code == 400
+    assert incorrect.value.status_code == 400
+    _require_demo_confirmation(
+        DemoOperationRequest(confirmation="replace-all-items"),
+        "replace-all-items",
+    )
+
+
+def test_ingestion_rejects_private_network_urls() -> None:
+    with TestClient(app) as client:
+        rss = client.post(
+            "/ingest/rss",
+            json={"feeds": ["http://169.254.169.254/latest/meta-data/"]},
+        ).json()
+        web = client.post(
+            "/ingest/web",
+            json={
+                "urls": ["http://127.0.0.1/private"],
+                "max_pages": 1,
+                "follow_links": False,
+            },
+        ).json()
+
+    assert rss["ingested"] == 0
+    assert "non-public" in rss["errors"][0]["error"]
+    assert web["scraped"] == 0
+    assert "non-public" in web["errors"][0]["error"]
+
+
+def test_explicitly_empty_ingestion_lists_do_not_use_defaults() -> None:
+    with TestClient(app) as client:
+        rss = client.post("/ingest/rss", json={"feeds": []}).json()
+        web = client.post(
+            "/ingest/web",
+            json={"urls": [], "max_pages": 1, "follow_links": False},
+        ).json()
+
+    assert rss == {"ingested": 0, "errors": []}
+    assert web == {"scraped": 0, "skipped": 0, "errors": []}
 
 
 def test_mvp_endpoints_use_sqlite_and_fallback_analysis(monkeypatch) -> None:
@@ -144,3 +247,25 @@ def test_scraper_relevance_matches_demo_themes() -> None:
     assert is_low_value_page("https://recadec.org/en/home/", "Home - recadec.org")
     assert is_low_value_page("https://recadec.org/en/faq/", "FQA - recadec.org")
     assert is_low_value_page("https://recadec.org/en/vision/", "Our vision - recadec.org")
+
+
+def test_candidate_link_discovery_caps_without_dns_lookups(monkeypatch) -> None:
+    def unexpected_dns_lookup(*args, **kwargs):
+        raise AssertionError(f"link discovery must not resolve DNS: {args}, {kwargs}")
+
+    monkeypatch.setattr(
+        "backend.http_client.socket.getaddrinfo",
+        unexpected_dns_lookup,
+    )
+    html = "".join(
+        f'<a href="/funding/call-{index}">Burundi education funding {index}</a>'
+        for index in range(100)
+    )
+
+    links = extract_candidate_links(
+        "https://example.org/news",
+        html,
+        max_links=3,
+    )
+
+    assert len(links) == 3

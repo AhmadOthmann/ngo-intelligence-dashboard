@@ -9,7 +9,7 @@ How to use:
    macOS/Linux:
       export OPENAI_API_KEY="your_api_key_here"
 3) Run:
-      python sora_batch_scenes.py
+      python pitch_video/pitch_video.py
 
 Optional environment variables:
 - SORA_MODEL=sora-2-pro
@@ -39,9 +39,13 @@ from openai import OpenAI
 # Configuration
 # ---------------------------------------------------------------------------
 
-# Change this path if your prompt_script.txt is somewhere else.
-SCRIPT_PATH = Path(r"C:\Users\farah\iCloudDrive\Masters\Masters AI in Society\SS2026\AI for Good\ngo-intelligence-dashboard\pitch_video\prompt_script.txt")
-OUTPUT_DIR = Path(r"C:\Users\farah\iCloudDrive\Masters\Masters AI in Society\SS2026\AI for Good\ngo-intelligence-dashboard\pitch_video\videos")
+SCRIPT_DIR = Path(__file__).resolve().parent
+SCRIPT_PATH = Path(
+    os.getenv("PITCH_SCRIPT_PATH", str(SCRIPT_DIR / "prompt_script.txt"))
+).expanduser()
+OUTPUT_DIR = Path(
+    os.getenv("SORA_OUTPUT_DIR", str(SCRIPT_DIR / "outputs"))
+).expanduser()
 PROMPTS_DIR = OUTPUT_DIR / "prompts"
 JOBS_PATH = OUTPUT_DIR / "sora_scene_jobs.jsonl"
 

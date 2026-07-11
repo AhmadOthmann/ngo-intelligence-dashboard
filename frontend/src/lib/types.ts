@@ -1,21 +1,12 @@
 export type Priority = "urgent" | "relevant" | "info";
 export type SignalType = "news" | "funding" | "report" | "peer";
-export type SavedStatus =
-  | "saved"
-  | "reviewing"
-  | "contacted"
-  | "digest"
-  | "applying"
-  | "archived";
+export type SavedStatus = "saved" | "reviewing" | "contacted" | "digest" | "applying" | "archived";
 export type SavedCategory =
-  | "funding_pipeline"
-  | "news_press"
-  | "field_intel"
-  | "peer"
-  | "watchlist";
+  "funding_pipeline" | "news_press" | "field_intel" | "peer" | "watchlist";
 
 export interface FundingDetails {
   deadline: string;
+  deadlineIso?: string;
   amount: string;
   funder: string;
   eligibility: string;
@@ -33,6 +24,7 @@ export interface Signal {
   title: string;
   source: string;
   date: string;
+  dateIso?: string;
   originalLanguage: string;
   summary: string;
   longSummary?: string;
@@ -90,6 +82,7 @@ export interface ChatMessage {
   originalLang: string;
   translatedText: string;
   targetLang: string;
+  translationKind?: "provider" | "demo";
   translationError?: string;
   timestamp: string;
   sentAt?: string;

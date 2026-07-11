@@ -1,3 +1,6 @@
+> [!WARNING]
+> Historical planning document. It no longer describes the implemented API, data model, AI fallback, frontend, or deployment accurately. Use the maintained [README](../../../README.md), [architecture](../../../docs/ARCHITECTURE.md), [API reference](../../../docs/API.md), and [implementation status](../../../FINAL_REQUIREMENTS.md). This file is retained only as hackathon planning history.
+
 # Implementation Plan: NGO Intelligence Dashboard
 
 ## Overview

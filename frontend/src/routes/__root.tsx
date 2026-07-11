@@ -79,14 +79,21 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Impact Atlas" },
-      { name: "description", content: "Impact Atlas - relevant NGO intelligence in the right language." },
+      { title: "Impact Atlas - Hackathon Demo" },
+      {
+        name: "description",
+        content:
+          "Impact Atlas is a transparent hackathon prototype with a working NGO intelligence backend and clearly labelled local demo workflows.",
+      },
       { name: "author", content: "Impact Atlas" },
-      { property: "og:title", content: "Impact Atlas" },
-      { property: "og:description", content: "Relevant NGO intelligence, routed to the right organization in the right language." },
+      { property: "og:title", content: "Impact Atlas - Hackathon Demo" },
+      {
+        property: "og:description",
+        content:
+          "A transparent prototype for multilingual NGO intelligence; account and peer workflows are local demos.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
-      { name: "twitter:site", content: "@Lovable" },
     ],
     links: [
       {

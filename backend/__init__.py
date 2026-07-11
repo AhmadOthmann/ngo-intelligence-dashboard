@@ -1,1 +1,1 @@
-"""Backend package for the NGO Intelligence Dashboard."""
+"""Backend package for Impact Atlas."""

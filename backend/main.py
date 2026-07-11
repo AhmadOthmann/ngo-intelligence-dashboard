@@ -23,6 +23,7 @@ from .database import (
 from .ingest_service import IngestService
 from .models import (
     AnalyzeAllResponse,
+    DemoOperationRequest,
     DigestResponse,
     HealthResponse,
     IngestRequest,
@@ -104,7 +105,7 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="NGO Intelligence Dashboard API", lifespan=lifespan)
+app = FastAPI(title="Impact Atlas API", lifespan=lifespan)
 
 ALLOWED_ORIGINS = [
     "http://localhost:5173",
@@ -137,6 +138,30 @@ app.add_middleware(
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["Content-Type"],
 )
+
+
+def _environment_flag(name: str, default: bool = False) -> bool:
+    value = os.environ.get(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _require_demo_endpoints() -> None:
+    environment = os.environ.get("APP_ENV", "").strip().lower()
+    if (
+        environment not in {"dev", "development", "local", "test"}
+        or not _environment_flag("ENABLE_DEMO_ENDPOINTS")
+    ):
+        raise HTTPException(status_code=404, detail="Not found")
+
+
+def _require_demo_confirmation(
+    request: DemoOperationRequest | None,
+    expected: str,
+) -> None:
+    if request is None or request.confirmation != expected:
+        raise HTTPException(status_code=400, detail="Demo confirmation is required")
 
 
 @app.get("/")
@@ -343,7 +368,9 @@ def translate_item(
 
 
 @app.post("/demo/reset")
-def demo_reset() -> dict[str, Any]:
+def demo_reset(request: DemoOperationRequest | None = None) -> dict[str, Any]:
+    _require_demo_endpoints()
+    _require_demo_confirmation(request, "replace-all-items")
     clear_items()
     created = []
     for demo_item in DEMO_ITEMS:
@@ -358,7 +385,9 @@ def demo_reset() -> dict[str, Any]:
 
 
 @app.post("/demo/run")
-def demo_run() -> dict[str, Any]:
+def demo_run(request: DemoOperationRequest | None = None) -> dict[str, Any]:
+    _require_demo_endpoints()
+    _require_demo_confirmation(request, "run-live-ingestion")
     ingest_result = IngestService().ingest()
     scrape_result = WebScraperService().scrape(max_pages=15, follow_links=True)
     analyzed = AnalysisService().analyze_all(limit=50)

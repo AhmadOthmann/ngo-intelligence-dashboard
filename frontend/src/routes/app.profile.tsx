@@ -36,11 +36,16 @@ function ProfilePage() {
   const language = profile?.language;
   const copy = profileCopy(language);
   const [editOpen, setEditOpen] = useState(false);
-  const [regenerating, setRegenerating] = useState(false);
 
   const p = profile;
   const initials = useMemo(
-    () => (p?.name ?? "NG").split(" ").map((s) => s[0]).slice(0, 2).join("").toUpperCase(),
+    () =>
+      (p?.name ?? "NG")
+        .split(" ")
+        .map((s) => s[0])
+        .slice(0, 2)
+        .join("")
+        .toUpperCase(),
     [p?.name],
   );
 
@@ -48,16 +53,13 @@ function ProfilePage() {
     return <div className="px-5 py-8 text-sm text-muted-foreground">{copy.loadingProfile}</div>;
   }
 
-  const regenerate = async () => {
-    setRegenerating(true);
-    await new Promise((r) => setTimeout(r, 1400));
+  const refreshDemoSuggestions = () => {
     setProfile({
       ...p,
       suggestedKeywords: Array.from(
         new Set([...(p.suggestedKeywords ?? []), "donor coordination", "local partner"]),
       ),
     });
-    setRegenerating(false);
     toast.success(copy.aiProfileRefreshed);
   };
 
@@ -74,9 +76,9 @@ function ProfilePage() {
           <Button variant="outline" onClick={() => setEditOpen(true)}>
             <Pencil className="h-4 w-4" /> {copy.editProfile}
           </Button>
-          <Button onClick={regenerate} disabled={regenerating}>
+          <Button onClick={refreshDemoSuggestions}>
             <Sparkles className="h-4 w-4" />
-            {regenerating ? copy.regenerating : copy.regenerateAiProfile}
+            {copy.regenerateAiProfile}
           </Button>
         </div>
       </div>
@@ -94,7 +96,9 @@ function ProfilePage() {
                 {p.city ? ` / ${p.city}` : ""}
               </span>
               <span>/</span>
-              <span>{copy.language}: {p.language}</span>
+              <span>
+                {copy.language}: {p.language}
+              </span>
               {p.website && (
                 <>
                   <span>/</span>
@@ -117,19 +121,42 @@ function ProfilePage() {
       </section>
 
       <Card title={copy.topicsKeywords}>
-        <ChipBlock label={knownLabel(language, "Selected topics")} items={p.topics} language={language} tone="primary" />
+        <ChipBlock
+          label={knownLabel(language, "Selected topics")}
+          items={p.topics}
+          language={language}
+          tone="primary"
+        />
         <ChipBlock label={copy.customKeywords} items={p.keywords} language={language} />
-        <ChipBlock label={knownLabel(language, "Detected AI topics")} items={p.focusAreas} language={language} tone="primary" />
-        <ChipBlock label={knownLabel(language, "Detected regions")} items={p.regions} language={language} />
+        <ChipBlock
+          label={copy.suggestedTopics}
+          items={p.focusAreas}
+          language={language}
+          tone="primary"
+        />
+        <ChipBlock
+          label={knownLabel(language, "Detected regions")}
+          items={p.regions}
+          language={language}
+        />
       </Card>
 
       <Card title={copy.fundingPreferences}>
-        <Row label={copy.receivesFundingOpportunities} value={p.fundingPrefs?.enabled ? copy.yes : copy.no} />
+        <Row
+          label={copy.receivesFundingOpportunities}
+          value={p.fundingPrefs?.enabled ? copy.yes : copy.no}
+        />
         <Row label={copy.fundingRegions} value={localizedList(p.fundingPrefs?.regions, language)} />
         <Row label={copy.minimumAmount} value={p.fundingPrefs?.min || "-"} />
         <Row label={copy.maximumAmount} value={p.fundingPrefs?.max || "-"} />
-        <Row label={copy.applicantType} value={localizedList(p.fundingPrefs?.applicantTypes, language)} />
-        <Row label={copy.fundingTopics} value={localizedList(p.fundingPrefs?.fundingTopics, language)} />
+        <Row
+          label={copy.applicantType}
+          value={localizedList(p.fundingPrefs?.applicantTypes, language)}
+        />
+        <Row
+          label={copy.fundingTopics}
+          value={localizedList(p.fundingPrefs?.fundingTopics, language)}
+        />
       </Card>
 
       <Card title={copy.sourcePreferences}>
@@ -140,11 +167,15 @@ function ProfilePage() {
               <div
                 key={src}
                 className={`flex items-center justify-between rounded-xl border px-3 py-2 text-sm ${
-                  on ? "border-primary/30 bg-primary/5 text-foreground" : "border-border bg-card text-foreground/70"
+                  on
+                    ? "border-primary/30 bg-primary/5 text-foreground"
+                    : "border-border bg-card text-foreground/70"
                 }`}
               >
                 <span>{knownLabel(language, src)}</span>
-                <span className={`text-[11px] font-medium ${on ? "text-primary" : "text-muted-foreground"}`}>
+                <span
+                  className={`text-[11px] font-medium ${on ? "text-primary" : "text-muted-foreground"}`}
+                >
                   {on ? copy.on : copy.off}
                 </span>
               </div>
@@ -199,9 +230,7 @@ function ChipBlock({
           <span
             key={i}
             className={`rounded-full px-2.5 py-1 text-xs ${
-              tone === "primary"
-                ? "bg-primary/10 text-primary"
-                : "bg-secondary text-foreground/80"
+              tone === "primary" ? "bg-primary/10 text-primary" : "bg-secondary text-foreground/80"
             }`}
           >
             {knownLabel(language, i)}
@@ -237,7 +266,13 @@ function EditProfileDialog({
   const copy = profileCopy(language);
   const [form, setForm] = useState(profile);
   return (
-    <Dialog open={open} onOpenChange={(v) => { onOpenChange(v); if (v) setForm(profile); }}>
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        onOpenChange(v);
+        if (v) setForm(profile);
+      }}
+    >
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{copy.editProfile}</DialogTitle>
@@ -248,18 +283,30 @@ function EditProfileDialog({
           </Field>
           <div className="grid grid-cols-2 gap-3">
             <Field label={copy.country}>
-              <Input value={form.country} onChange={(e) => setForm({ ...form, country: e.target.value })} />
+              <Input
+                value={form.country}
+                onChange={(e) => setForm({ ...form, country: e.target.value })}
+              />
             </Field>
             <Field label={copy.city}>
-              <Input value={form.city ?? ""} onChange={(e) => setForm({ ...form, city: e.target.value })} />
+              <Input
+                value={form.city ?? ""}
+                onChange={(e) => setForm({ ...form, city: e.target.value })}
+              />
             </Field>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <Field label={copy.language}>
-              <Input value={form.language} onChange={(e) => setForm({ ...form, language: e.target.value })} />
+              <Input
+                value={form.language}
+                onChange={(e) => setForm({ ...form, language: e.target.value })}
+              />
             </Field>
             <Field label={copy.website}>
-              <Input value={form.website ?? ""} onChange={(e) => setForm({ ...form, website: e.target.value })} />
+              <Input
+                value={form.website ?? ""}
+                onChange={(e) => setForm({ ...form, website: e.target.value })}
+              />
             </Field>
           </div>
           <Field label={copy.description}>
@@ -272,7 +319,9 @@ function EditProfileDialog({
           </Field>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>{translate(language, "cancel")}</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            {translate(language, "cancel")}
+          </Button>
           <Button onClick={() => onSave(form)}>{copy.saveChanges}</Button>
         </DialogFooter>
       </DialogContent>
@@ -297,7 +346,7 @@ function profileCopy(language: string | undefined) {
   const locale = localeFromLanguage(language);
   if (locale === "fr") {
     return {
-      aiProfileRefreshed: "Profil IA actualise",
+      aiProfileRefreshed: "Suggestions de demo actualisees",
       applicantType: "Type de candidat",
       city: "Ville",
       country: "Pays",
@@ -317,11 +366,11 @@ function profileCopy(language: string | undefined) {
       organizationName: "Nom de l'organisation",
       profileUpdated: "Profil mis a jour",
       receivesFundingOpportunities: "Recoit des opportunites de financement",
-      regenerateAiProfile: "Regenerer le profil IA",
-      regenerating: "Regeneration...",
+      regenerateAiProfile: "Actualiser les suggestions de demo",
       saveChanges: "Sauvegarder",
       sourcePreferences: "Preferences de sources",
-      subtitle: "Ce qu'Impact Atlas sait de votre ONG et comment il vous route les signaux.",
+      subtitle: "Profil local de demo; il ne modifie pas le routage ni l'analyse du backend.",
+      suggestedTopics: "Themes de demo suggeres",
       topicsKeywords: "Themes et mots-cles",
       website: "Site web",
       yes: "Oui",
@@ -329,7 +378,7 @@ function profileCopy(language: string | undefined) {
   }
   if (locale === "de") {
     return {
-      aiProfileRefreshed: "KI-Profil aktualisiert",
+      aiProfileRefreshed: "Demo-Vorschlaege aktualisiert",
       applicantType: "Antragstellertyp",
       city: "Stadt",
       country: "Land",
@@ -349,18 +398,18 @@ function profileCopy(language: string | undefined) {
       organizationName: "Name der Organisation",
       profileUpdated: "Profil aktualisiert",
       receivesFundingOpportunities: "Erhaelt Foerdermoeglichkeiten",
-      regenerateAiProfile: "KI-Profil neu generieren",
-      regenerating: "Wird neu generiert...",
+      regenerateAiProfile: "Demo-Vorschlaege aktualisieren",
       saveChanges: "Aenderungen speichern",
       sourcePreferences: "Quellenpraeferenzen",
-      subtitle: "Was Impact Atlas ueber Ihre NGO weiss und wie Signale zu Ihnen geleitet werden.",
+      subtitle: "Lokales Demo-Profil; Backend-Routing und Analyse werden dadurch nicht geaendert.",
+      suggestedTopics: "Vorgeschlagene Demo-Themen",
       topicsKeywords: "Themen und Stichwoerter",
       website: "Website",
       yes: "Ja",
     };
   }
   return {
-    aiProfileRefreshed: "AI profile refreshed",
+    aiProfileRefreshed: "Demo suggestions refreshed",
     applicantType: "Applicant type",
     city: "City",
     country: "Country",
@@ -380,11 +429,11 @@ function profileCopy(language: string | undefined) {
     organizationName: "Organization name",
     profileUpdated: "Profile updated",
     receivesFundingOpportunities: "Receives funding opportunities",
-    regenerateAiProfile: "Regenerate AI Profile",
-    regenerating: "Regenerating...",
+    regenerateAiProfile: "Refresh Demo Suggestions",
     saveChanges: "Save changes",
     sourcePreferences: "Source preferences",
-    subtitle: "What Impact Atlas knows about your NGO and how it routes signals to you.",
+    subtitle: "Local demo profile; it does not change backend routing or analysis.",
+    suggestedTopics: "Suggested demo topics",
     topicsKeywords: "Topics & keywords",
     website: "Website",
     yes: "Yes",

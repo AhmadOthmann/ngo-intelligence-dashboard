@@ -101,6 +101,13 @@ export interface TranslateTextResult {
   quality_note: string;
 }
 
+export interface DemoResetResult {
+  status: string;
+  created: number;
+  analyzed: number;
+  errors: Array<{ item_id: number; error: string }>;
+}
+
 export interface ItemsResponse {
   items: BackendItem[];
   count: number;
@@ -220,6 +227,23 @@ export async function analyzeAll(limit = 100): Promise<AnalyzeAllResult> {
   return response.json();
 }
 
+export async function resetDemo(): Promise<DemoResetResult> {
+  const response = await fetch(`${API_BASE_URL}/demo/reset`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ confirmation: "replace-all-items" }),
+  });
+  if (!response.ok) {
+    if (response.status === 404) {
+      throw new Error(
+        "Demo data loading is disabled. Enable demo endpoints in a local development backend.",
+      );
+    }
+    throw new Error(`Demo data could not be loaded (${response.status})`);
+  }
+  return response.json();
+}
+
 export async function translateItem(id: number, targetLanguage: string): Promise<BackendItem> {
   const response = await fetch(`${API_BASE_URL}/translate/${id}`, {
     method: "POST",
@@ -259,6 +283,7 @@ export function itemToSignal(item: BackendItem): Signal {
     title: item.title,
     source: item.source,
     date: formatDate(item.published_at ?? item.created_at),
+    dateIso: item.published_at ?? item.created_at,
     originalLanguage: item.language || "unknown",
     summary,
     longSummary: cleanText(item.raw_text),
@@ -286,14 +311,19 @@ export function itemToSignal(item: BackendItem): Signal {
       type === "funding"
         ? {
             deadline: item.deadline ? formatDate(item.deadline) : "No deadline detected",
+            deadlineIso: item.deadline ?? undefined,
             amount: "Check source",
             funder: item.source,
             eligibility: "Check source details",
             canApply: "check",
           }
         : undefined,
-    translatedText: isTranslationPreview(item.translated_text) ? undefined : item.translated_text ?? undefined,
-    translatedLanguage: isTranslationPreview(item.translated_text) ? undefined : item.translated_language ?? undefined,
+    translatedText: isTranslationPreview(item.translated_text)
+      ? undefined
+      : (item.translated_text ?? undefined),
+    translatedLanguage: isTranslationPreview(item.translated_text)
+      ? undefined
+      : (item.translated_language ?? undefined),
     url: item.url,
   };
 }
@@ -305,7 +335,10 @@ function mapType(item: BackendItem): SignalType {
 }
 
 function cleanText(text: string): string {
-  return text.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  return text
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function truncate(text: string, maxLength: number): string {

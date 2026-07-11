@@ -1,13 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import {
-  BadgeDollarSign,
-  Database,
-  RefreshCw,
-  Search,
-  Wand2,
-  type LucideIcon,
-} from "lucide-react";
+import { BadgeDollarSign, Database, RefreshCw, Search, Wand2, type LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SignalCard } from "@/components/signal-card";
@@ -21,6 +14,7 @@ import {
   type FilterKey,
   type SortKey,
 } from "@/lib/i18n";
+import type { Signal } from "@/lib/types";
 
 export const Route = createFileRoute("/app/inbox")({
   head: () => ({ meta: [{ title: "Signal Inbox - Impact Atlas" }] }),
@@ -69,17 +63,11 @@ function InboxPage() {
     if (signalSource === "demo" && q.trim()) {
       const needle = q.toLowerCase();
       list = list.filter(
-        (s) =>
-          s.title.toLowerCase().includes(needle) ||
-          s.summary.toLowerCase().includes(needle),
+        (s) => s.title.toLowerCase().includes(needle) || s.summary.toLowerCase().includes(needle),
       );
     }
 
-    if (sort === "mostUrgent") {
-      const rank = { urgent: 0, relevant: 1, info: 2 } as const;
-      list = [...list].sort((a, b) => rank[a.priority] - rank[b.priority]);
-    }
-    return list;
+    return sortSignals(list, sort);
   }, [signals, ignoredIds, saved, filter, sort, q, signalSource]);
 
   const language = profile?.language;
@@ -94,7 +82,7 @@ function InboxPage() {
     }),
     [signals],
   );
-  const activeSummary = summary ?? fallbackSummary;
+  const activeSummary = signalSource === "backend" && summary ? summary : fallbackSummary;
 
   async function loadSummary() {
     try {
@@ -135,22 +123,42 @@ function InboxPage() {
             <h1 className="text-2xl font-semibold tracking-tight text-foreground">
               {localizedGreeting}, {profile?.name ?? translate(language, "yourNgo")}
             </h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {inboxSubtitle(language)}
-            </p>
+            <p className="mt-1 text-sm text-muted-foreground">{inboxSubtitle(language)}</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => void handleRefresh()} disabled={isLoadingSignals}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => void handleRefresh()}
+              disabled={isLoadingSignals}
+            >
               <RefreshCw className={`h-4 w-4 ${isLoadingSignals ? "animate-spin" : ""}`} />
               {translate(language, "refresh")}
             </Button>
-            <Button size="sm" onClick={() => void handleUpdateSignals()} disabled={isLoadingSignals}>
+            <Button
+              size="sm"
+              onClick={() => void handleUpdateSignals()}
+              disabled={isLoadingSignals}
+            >
               <RefreshCw className={`h-4 w-4 ${isLoadingSignals ? "animate-spin" : ""}`} />
               {translate(language, "updateSignals")}
             </Button>
           </div>
         </div>
         <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+          <span
+            className={`rounded-full px-2 py-1 font-medium ${
+              signalSource === "backend"
+                ? "bg-emerald-100 text-emerald-800"
+                : "bg-amber-100 text-amber-900"
+            }`}
+          >
+            {signalSource === "backend"
+              ? "Backend data"
+              : isLoadingSignals
+                ? "Static demo data (backend loading)"
+                : "Static demo data"}
+          </span>
           {ingestResult && (
             <span>
               {translate(language, "lastUpdate")}: {ingestResult.ingested}{" "}
@@ -166,10 +174,37 @@ function InboxPage() {
         </div>
       </div>
 
+      {signalError && (
+        <div
+          role="alert"
+          className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-950"
+        >
+          <span className="font-medium">
+            {signalSource === "demo" ? "Backend data is unavailable." : "Backend refresh failed."}
+          </span>{" "}
+          {signalError}.{" "}
+          {signalSource === "demo"
+            ? "The signals below are static examples, not live backend results."
+            : "The signals below are the last backend results loaded in this browser session."}
+        </div>
+      )}
+
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Metric icon={Database} label={translate(language, "signals")} value={String(activeSummary.signals)} />
-        <Metric icon={BadgeDollarSign} label={translate(language, "fundingLeads")} value={String(activeSummary.fundingLeads)} />
-        <Metric icon={Wand2} label={translate(language, "prioritySignals")} value={String(activeSummary.prioritySignals)} />
+        <Metric
+          icon={Database}
+          label={translate(language, "signals")}
+          value={String(activeSummary.signals)}
+        />
+        <Metric
+          icon={BadgeDollarSign}
+          label={translate(language, "fundingLeads")}
+          value={String(activeSummary.fundingLeads)}
+        />
+        <Metric
+          icon={Wand2}
+          label={translate(language, "prioritySignals")}
+          value={String(activeSummary.prioritySignals)}
+        />
         <Metric
           icon={Wand2}
           label={translate(language, "analysis")}
@@ -248,7 +283,11 @@ function InboxPage() {
 
       {signalSource === "backend" && hasMoreSignals && (
         <div className="flex justify-center">
-          <Button variant="outline" onClick={() => void loadMoreSignals()} disabled={isLoadingSignals}>
+          <Button
+            variant="outline"
+            onClick={() => void loadMoreSignals()}
+            disabled={isLoadingSignals}
+          >
             {isLoadingSignals ? translate(language, "loading") : translate(language, "loadMore")}
           </Button>
         </div>
@@ -260,23 +299,15 @@ function InboxPage() {
 function inboxSubtitle(language: string | undefined): string {
   const locale = language?.trim().toLowerCase() ?? "";
   if (locale.startsWith("german") || locale === "de" || locale === "deutsch") {
-    return "Hier sind die relevantesten Signale fuer Ihre Organisation heute.";
+    return "Hier sind die aktuell im Backend oder statischen Demo-Datensatz verfuegbaren Signale.";
   }
   if (locale.startsWith("french") || locale === "fr" || locale.startsWith("franc")) {
-    return "Voici les signaux les plus pertinents pour votre organisation aujourd'hui.";
+    return "Voici les signaux actuellement disponibles dans le backend ou le jeu de demo statique.";
   }
-  return "Here are the most relevant signals for your organization today.";
+  return "Signals currently available from the backend or static demo dataset.";
 }
 
-function Metric({
-  icon: Icon,
-  label,
-  value,
-}: {
-  icon: LucideIcon;
-  label: string;
-  value: string;
-}) {
+function Metric({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value: string }) {
   return (
     <div className="rounded-lg border border-border bg-card p-4">
       <div className="flex items-center justify-between gap-3">
@@ -286,4 +317,57 @@ function Metric({
       <div className="mt-2 truncate text-2xl font-semibold text-foreground">{value}</div>
     </div>
   );
+}
+
+function sortSignals(signals: Signal[], sort: SortKey): Signal[] {
+  const sorted = [...signals];
+
+  if (sort === "mostRelevant") {
+    return sorted.sort(
+      (a, b) =>
+        relevanceRank(a) - relevanceRank(b) ||
+        priorityRank(a) - priorityRank(b) ||
+        signalDate(b) - signalDate(a),
+    );
+  }
+
+  if (sort === "mostUrgent") {
+    return sorted.sort(
+      (a, b) =>
+        priorityRank(a) - priorityRank(b) ||
+        deadlineDate(a) - deadlineDate(b) ||
+        relevanceRank(a) - relevanceRank(b),
+    );
+  }
+
+  if (sort === "newest") {
+    return sorted.sort((a, b) => signalDate(b) - signalDate(a));
+  }
+
+  return sorted.sort(
+    (a, b) => deadlineDate(a) - deadlineDate(b) || relevanceRank(a) - relevanceRank(b),
+  );
+}
+
+function relevanceRank(signal: Signal): number {
+  const importance = signal.aiImportance;
+  if (importance === "urgent") return 0;
+  if (importance === "important") return 1;
+  if (importance === "medium") return 2;
+  if (importance === "low") return 3;
+  return signal.priority === "urgent" ? 0 : signal.priority === "relevant" ? 2 : 4;
+}
+
+function priorityRank(signal: Signal): number {
+  return signal.priority === "urgent" ? 0 : signal.priority === "relevant" ? 1 : 2;
+}
+
+function signalDate(signal: Signal): number {
+  const parsed = Date.parse(signal.dateIso ?? "");
+  return Number.isNaN(parsed) ? Number.NEGATIVE_INFINITY : parsed;
+}
+
+function deadlineDate(signal: Signal): number {
+  const parsed = Date.parse(signal.funding?.deadlineIso ?? "");
+  return Number.isNaN(parsed) ? Number.POSITIVE_INFINITY : parsed;
 }

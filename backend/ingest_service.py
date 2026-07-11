@@ -2,14 +2,14 @@ from datetime import datetime, timezone
 import sqlite3
 from time import struct_time
 from typing import Any, Optional
-from urllib.error import URLError
 from urllib.parse import urlparse
-from urllib.request import Request, urlopen
 
 import feedparser
 from langdetect import LangDetectException, detect_langs
+import requests
 
 from .database import create_item
+from .http_client import fetch_public_url, validate_public_url
 from .models import IngestResult
 
 
@@ -23,9 +23,12 @@ DEFAULT_RSS_FEEDS = [
 class IngestService:
     def __init__(self, db_path: Optional[str] = None) -> None:
         self.db_path = db_path
+        self.session = requests.Session()
+        self.session.trust_env = False
+        self.session.headers.update({"User-Agent": "impact-atlas/0.1 (+local hackathon demo)"})
 
     def ingest(self, feeds: Optional[list[str]] = None) -> IngestResult:
-        feed_urls = feeds or DEFAULT_RSS_FEEDS
+        feed_urls = DEFAULT_RSS_FEEDS if feeds is None else feeds
         ingested = 0
         errors: list[dict[str, str]] = []
 
@@ -48,14 +51,13 @@ class IngestService:
         return IngestResult(ingested=ingested, errors=errors)
 
     def _fetch_feed(self, feed_url: str) -> Any:
-        request = Request(feed_url, headers={"User-Agent": "ngo-intelligence-dashboard/0.1"})
-        try:
-            with urlopen(request, timeout=30) as response:
-                content = response.read()
-        except URLError as exc:
-            raise RuntimeError(f"Feed could not be reached: {exc.reason}") from exc
-
-        parsed_feed = feedparser.parse(content)
+        response = fetch_public_url(
+            self.session,
+            feed_url,
+            timeout=(5, 30),
+            accepted_content_types=("xml", "rss", "atom", "text/plain"),
+        )
+        parsed_feed = feedparser.parse(response.content)
         if parsed_feed.bozo:
             raise RuntimeError(f"Invalid RSS/Atom feed: {parsed_feed.bozo_exception}")
         return parsed_feed
@@ -64,6 +66,14 @@ class IngestService:
         title = self._get_text(entry, "title")
         url = self._get_text(entry, "link")
         if not title or not url:
+            return None
+        try:
+            url = validate_public_url(
+                url,
+                allowed_domains=(),
+                require_allowlist_in_production=False,
+            )
+        except ValueError:
             return None
 
         raw_text = self._extract_raw_text(entry, title)
