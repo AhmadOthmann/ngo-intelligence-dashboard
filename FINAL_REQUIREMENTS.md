@@ -42,7 +42,7 @@ These features use static fixtures or React memory and disappear or reset when t
 
 - When `AI_PROVIDER=openai` and a usable-looking key is configured, analysis, translation, and digest code attempts the OpenAI Responses API.
 - Analysis and digests fall back to deterministic logic when OpenAI is unavailable.
-- Translation attempts a Google Translate service through `deep-translator`, may use OpenAI when configured, and otherwise returns preview text.
+- Translation tries OpenAI when configured, optionally uses Google through `deep-translator` when `TRANSLATION_PROVIDER=google`, and otherwise returns preview text.
 - Provider exceptions are generally hidden by fallback output.
 
 ## Known blockers for production
